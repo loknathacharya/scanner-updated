@@ -1,0 +1,126 @@
+# ==========================================
+# Global settings
+# ==========================================
+
+# OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+*.swp
+*.swo
+
+# IDE settings
+.vscode/
+.idea/
+*.iml
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# Python ignores
+# ==========================================
+
+# Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+Pipfile.lock
+poetry.lock
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Logs
+*.log
+*.out
+*.err
+
+# Test / coverage
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.tox/
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_convert
+profile_default/
+*.sage.py
+
+# SQLite / DB
+*.db
+*.sqlite3
+
+# ==========================================
+# Node / React ignores
+# ==========================================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+build/
+dist/
+out/
+.next/
+.cache/
+.npm/
+.eslintcache
+.parcel-cache/
+*.tsbuildinfo
+
+# React Native / Expo
+.expo/
+.expo-shared/
+*.xcworkspace
+android/
+ios/
+
+# Testing
+coverage/
+*.lcov
+
+# ==========================================
+# Miscellaneous
+# ==========================================
+
+# dotenv environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Local configs
+*.local
+*.secret
+
+# Others
+logs/
+tmp/
+temp/
+.cache/
+.vagrant/
+*.orig
