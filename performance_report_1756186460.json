@@ -1,0 +1,54 @@
+{
+  "timestamp": 1756186460.4793015,
+  "summary": {
+    "total_operations": 2,
+    "total_execution_time": 0.039771080017089844,
+    "average_execution_time": 0.019885540008544922,
+    "total_memory_saved": 0.00390625,
+    "average_memory_saved": 0.001953125,
+    "operations_by_type": {
+      "optimize_memory_usage": 1,
+      "vectorize_operations": 1
+    },
+    "slowest_operations": [
+      {
+        "operation": "optimize_memory_usage",
+        "execution_time": 0.036951303482055664
+      },
+      {
+        "operation": "vectorize_operations",
+        "execution_time": 0.0028197765350341797
+      }
+    ],
+    "most_memory_saved": [
+      {
+        "operation": "optimize_memory_usage",
+        "memory_saved": 0.00390625
+      },
+      {
+        "operation": "vectorize_operations",
+        "memory_saved": 0.0
+      }
+    ]
+  },
+  "detailed_metrics": [
+    {
+      "operation": "optimize_memory_usage",
+      "execution_time": 0.036951303482055664,
+      "memory_before": 118.34765625,
+      "memory_after": 118.34375,
+      "memory_saved": 0.00390625,
+      "data_size": 1830,
+      "timestamp": 1756186460.4673524
+    },
+    {
+      "operation": "vectorize_operations",
+      "execution_time": 0.0028197765350341797,
+      "memory_before": 118.34375,
+      "memory_after": 118.34375,
+      "memory_saved": 0.0,
+      "data_size": 1830,
+      "timestamp": 1756186460.4711795
+    }
+  ]
+}
