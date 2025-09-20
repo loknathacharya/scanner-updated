@@ -255,6 +255,10 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
     (vectorized_data, signals_data, hp, sl, tp, signal_type,
      initial_capital, sizing_method, sizing_params, one_trade_per_instrument, allow_leverage) = args
     
+    # DEBUG: Log input parameters
+    print(f"DEBUG run_single_parameter_combo: Processing {len(signals_data)} signals")
+    print(f"DEBUG run_single_parameter_combo: Available tickers in vectorized_data: {list(vectorized_data.keys())}")
+    print(f"DEBUG run_single_parameter_combo: Signal tickers: {signals_data['Ticker'].unique()}")
     
     trades = []
     portfolio_value = initial_capital
@@ -272,6 +276,9 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
         ticker = signal['Ticker']
         entry_date_ordinal = pd.Timestamp(signal['Date']).toordinal()
         
+        # DEBUG: Log signal processing
+        print(f"DEBUG run_single_parameter_combo: Processing signal for {ticker} on {signal['Date']} (ordinal: {entry_date_ordinal})")
+        
         # Skip if one trade per instrument and active trade exists
         if one_trade_per_instrument and ticker in active_trades:
             if entry_date_ordinal <= active_trades[ticker]:
@@ -280,9 +287,11 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
                 del active_trades[ticker]
         
         if ticker not in vectorized_data:
+            print(f"DEBUG run_single_parameter_combo: No vectorized data for ticker {ticker}")
             continue
             
         ticker_prices = vectorized_data[ticker]
+        print(f"DEBUG run_single_parameter_combo: Found {len(ticker_prices)} price records for {ticker}")
         
         # Find entry point
         entry_indices = np.where(ticker_prices[:, 0] >= entry_date_ordinal)[0]
@@ -421,6 +430,7 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
     # Calmar ratio
     calmar_ratio = total_return / abs(max_drawdown) if max_drawdown != 0 else 0
     
+    # Return both performance metrics and trades
     return {
         'Holding Period': hp,
         'Stop Loss (%)': sl,
@@ -438,7 +448,8 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
         'Average Loss ($)': avg_loss_dollar,
         'Total Trades': total_trades,
         'Avg Position Size ($)': trades_df['Position Value'].mean(),
-        'Signal Type': signal_type.title()
+        'Signal Type': signal_type.title(),
+        'trades': trades  # Add trades list to the result
     }
     
 
@@ -743,175 +754,45 @@ def run_vectorized_single_backtest(ohlcv_df, signals_df, holding_period, stop_lo
                                  one_trade_per_instrument=False, initial_capital=100000, sizing_method='equal_weight',
                                  sizing_params=None, signal_type='long', allow_leverage=False):
     """
-    Vectorized version of single backtest
+    Vectorized version of single backtest - using run_single_parameter_combo for consistency
     """
-    if sizing_params is None:
-        sizing_params = {}
+    try:
+        # DEBUG: Log function call
+        print(f"DEBUG run_vectorized_single_backtest: Called with {len(signals_df)} signals")
+        
+        # Prepare vectorized data
+        vectorized_data = prepare_vectorized_data(ohlcv_df)
+        
+        # Create parameter combinations for single parameter run
+        if sizing_params is None:
+            sizing_params = {}
+            
+        param_combinations = [(vectorized_data, signals_df, holding_period, stop_loss_pct,
+                             take_profit_pct, signal_type, initial_capital, sizing_method,
+                             sizing_params, one_trade_per_instrument, allow_leverage)]
+        
+        # DEBUG: Log parameter creation
+        print(f"DEBUG run_vectorized_single_backtest: Created {len(param_combinations)} parameter combination(s)")
+        
+        # Run single parameter combination and capture trades
+        result = run_single_parameter_combo(param_combinations[0])
+        
+        # DEBUG: Log result
+        print(f"DEBUG run_vectorized_single_backtest: Result keys: {list(result.keys())}")
+        
+        # Convert trades list to DataFrame
+        trades_df = pd.DataFrame(result.get('trades', []))
+        
+        # DEBUG: Log return
+        print(f"DEBUG run_vectorized_single_backtest: Returning trades_df with shape {trades_df.shape}")
+        
+        return trades_df, []
     
-    trades = []
-    portfolio_value = initial_capital
-    active_trades = {}
-    open_positions_value = 0.0
-    
-    # DEBUG: Log initial state
-    print(f"DEBUG run_vectorized_single_backtest: Initial capital={initial_capital}, signal_type={signal_type}, allow_leverage={allow_leverage}")
-    
-    # Prepare vectorized data
-    st.info("Preparing data for vectorized processing...")
-    vectorized_data = prepare_vectorized_data(ohlcv_df)
-    
-    # Convert sizing method to code for numba
-    method_map = {'equal_weight': 0, 'fixed_amount': 1, 'percent_risk': 2,
-                  'volatility_target': 3, 'atr_based': 4, 'kelly_criterion': 5}
-    sizing_code = method_map.get(sizing_method, 0)
-    
-    # Process each signal
-    for _, signal in signals_df.iterrows():
-        ticker = signal['Ticker']
-        entry_date_ordinal = pd.Timestamp(signal['Date']).toordinal()
-        
-        # Skip if one trade per instrument and active trade exists
-        if one_trade_per_instrument and ticker in active_trades:
-            if entry_date_ordinal <= active_trades[ticker]:
-                continue
-            else:
-                del active_trades[ticker]
-        
-        if ticker not in vectorized_data:
-            continue
-            
-        ticker_prices = vectorized_data[ticker]
-        
-        # Find entry point
-        entry_indices = np.where(ticker_prices[:, 0] >= entry_date_ordinal)[0]
-        if len(entry_indices) == 0:
-            continue
-            
-        entry_idx = entry_indices[0]
-        # Check if there's enough data for the full holding period
-        if entry_idx + holding_period + 1 > len(ticker_prices):
-            continue
-            
-        entry_price = ticker_prices[entry_idx, 3]
-        
-        # Calculate position size with actual volatility and ATR (like regular backtest)
-        kelly_win_rate = sizing_params.get('kelly_win_rate', 55)
-        kelly_avg_win = sizing_params.get('kelly_avg_win', 8)
-        kelly_avg_loss = sizing_params.get('kelly_avg_loss', -4)
-        
-        # Calculate actual volatility and ATR for consistency with regular backtest
-        volatility = 0.20  # Default
-        atr = entry_price * 0.02  # Default
-        
-        if sizing_method == 'volatility_target':
-            # Calculate volatility using recent price data
-            # Get data up to current entry point
-            recent_indices = ticker_prices[:entry_idx+1, 0]  # All dates up to entry
-            if len(recent_indices) > 0:
-                # Convert back to datetime for volatility calculation
-                recent_dates = [pd.Timestamp.fromordinal(int(d)) for d in recent_indices]
-                recent_prices = ticker_prices[:entry_idx+1, 3]  # Close prices
-                if len(recent_prices) >= 60:  # Need enough data for volatility calculation
-                    recent_volatility_data = pd.Series(recent_prices)
-                    volatility = calculate_volatility(recent_volatility_data.tail(60))
-        
-        elif sizing_method == 'atr_based':
-            # Calculate ATR using recent OHLC data
-            if entry_idx >= 14:  # Need enough data for ATR calculation
-                recent_high = ticker_prices[max(0, entry_idx-29):entry_idx+1, 1]  # High prices
-                recent_low = ticker_prices[max(0, entry_idx-29):entry_idx+1, 2]   # Low prices
-                recent_close = ticker_prices[max(0, entry_idx-29):entry_idx+1, 3] # Close prices
-                
-                # Create DataFrame for ATR calculation
-                atr_data = pd.DataFrame({
-                    'High': recent_high,
-                    'Low': recent_low,
-                    'Close': recent_close
-                })
-                atr = calculate_atr(atr_data['High'], atr_data['Low'], atr_data['Close'])
-        
-        shares = calculate_position_size_vectorized(
-            sizing_code, entry_price, portfolio_value,
-            volatility, atr, sizing_params.get('risk_per_trade', 2.0),
-            sizing_params.get('fixed_amount', 10000),
-            sizing_params.get('volatility_target', 0.15),
-            0.05,  # Default stop loss assumption for percent risk calculation
-            allow_leverage,  # Use user's leverage setting
-            kelly_win_rate, kelly_avg_win, kelly_avg_loss,
-            open_positions_value # Pass open_positions_value
-        )
-        
-        # DEBUG: Log position sizing
-        print(f"DEBUG run_vectorized_single_backtest: Ticker={ticker}, Entry Price={entry_price:.2f}, Shares={shares:.0f}, Portfolio Value={portfolio_value:.2f}, Open Positions Value={open_positions_value:.2f}")
-        
-        position_value = shares * entry_price
-        
-        # DEBUG: Log position value calculation
-        print(f"DEBUG run_vectorized_single_backtest: Position Value={position_value:.2f}, Available Capital={portfolio_value - open_positions_value:.2f}")
-        
-        # For no leverage mode, check if we have enough capital
-        if not allow_leverage and open_positions_value + position_value > portfolio_value:
-            print(f"DEBUG run_vectorized_single_backtest: SKIPPED - Would require leverage. Total needed: {open_positions_value + position_value:.2f} > Available: {portfolio_value:.2f}")
-            continue # Skip this trade as it would require leverage
-
-        # Update open positions value
-        open_positions_value += position_value
-        print(f"DEBUG run_vectorized_single_backtest: Updated open positions value to {open_positions_value:.2f}")
-
-        
-        # Calculate trade outcome
-        exit_idx, exit_price, exit_reason = calculate_trade_outcomes_vectorized(
-            ticker_prices, entry_idx, holding_period, stop_loss_pct, take_profit_pct, signal_type
-        )
-        
-        if exit_idx > 0 and exit_price > 0:
-            # Calculate P&L
-            if signal_type == 'long':
-                pl_dollar = (exit_price - entry_price) * shares
-                pl_pct = ((exit_price - entry_price) / entry_price) * 100
-            else:  # short
-                pl_dollar = (entry_price - exit_price) * shares
-                pl_pct = ((entry_price - exit_price) / entry_price) * 100
-            
-            portfolio_value += pl_dollar
-            
-            # Update open positions value when trade exits
-            open_positions_value -= position_value
-            
-            # DEBUG: Log trade execution
-            print(f"DEBUG run_vectorized_single_backtest: Trade executed - P&L={pl_dollar:.2f}, New Portfolio Value={portfolio_value:.2f}, New Open Positions Value={open_positions_value:.2f}")
-
-            # Convert ordinal dates back to datetime for consistency with original format
-            entry_date = pd.Timestamp.fromordinal(int(ticker_prices[entry_idx, 0]))
-            exit_date = pd.Timestamp.fromordinal(int(ticker_prices[exit_idx, 0]))
-            
-
-            # Record trade with comprehensive data matching original format
-            trades.append({
-                'Ticker': ticker,
-                'Signal Type': signal_type.title(),
-                'Entry Date': entry_date,
-                'Entry Price': entry_price,
-                'Exit Date': exit_date,
-                'Exit Price': exit_price,
-                'Shares': shares,
-                'Position Value': position_value,
-                'P&L ($)': pl_dollar,
-                'Profit/Loss (%)': pl_pct,
-                'Exit Reason': exit_reason,
-                'Days Held': exit_idx - entry_idx,
-                'Portfolio Value': portfolio_value,
-                'Signal Date': entry_date  # Same as entry date for simplicity
-            })
-            
-            # Update active trades
-            if one_trade_per_instrument:
-                active_trades[ticker] = ticker_prices[exit_idx, 0]
-    
-    # Return DataFrame or empty DataFrame
-    if not trades:
-        return pd.DataFrame(), []
-    return pd.DataFrame(trades).sort_values(by='Exit Date').reset_index(drop=True), []
+    except Exception as e:
+        print(f"ERROR in run_vectorized_single_backtest: {e}")
+        import traceback
+        traceback.print_exc()
+        return pd.DataFrame(), [str(e)]
 def calculate_invested_value_over_time(trade_log_df_df):
     """
     Calculates the net invested value (total capital in active trades) over time.

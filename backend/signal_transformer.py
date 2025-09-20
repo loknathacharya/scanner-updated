@@ -59,14 +59,17 @@ class SignalTransformer:
             # Map column names: symbol → Ticker, date → Date
             df['Ticker'] = df['symbol'].astype(str).str.upper()
 
-            # Robust date parsing: many feeds are DD-MM-YYYY for signals
-            df['Date'] = pd.to_datetime(df['date'], errors='coerce', dayfirst=True)
-            # Fallback: if most are NaT, try month-first
+            # Robust date parsing: try YYYY-MM-DD first, then fallback to DD-MM-YYYY
+            df['Date'] = pd.to_datetime(df['date'], errors='coerce', format='ISO8601')
+            # Fallback: if most are NaT, try DD-MM-YYYY format (common for scanner feeds)
             if df['Date'].isna().mean() > 0.5:
-                alt = pd.to_datetime(df['date'], errors='coerce', dayfirst=False)
-                # prefer whichever yields fewer NaT
-                if alt.notna().sum() > df['Date'].notna().sum():
-                    df['Date'] = alt
+                df['Date'] = pd.to_datetime(df['date'], errors='coerce', dayfirst=True)
+                # Final fallback: if still mostly NaT, try month-first
+                if df['Date'].isna().mean() > 0.5:
+                    alt = pd.to_datetime(df['date'], errors='coerce', dayfirst=False)
+                    # prefer whichever yields fewer NaT
+                    if alt.notna().sum() > df['Date'].notna().sum():
+                        df['Date'] = alt
 
             # Standardize OHLCV column names if they exist
             for old_name, new_name in self.column_mapping.items():
