@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Quantify Backtest</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&amp;display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        display: ["Inter"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+    <div class="flex h-full min-h-screen w-full flex-col">
+        <header class="border-b border-gray-200/10 dark:border-gray-700/50">
+            <div class="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
+                <div class="flex items-center gap-4">
+                    <div class="size-8 text-primary">
+                        <svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+                            <path clip-rule="evenodd"
+                                d="M39.475 21.6262C40.358 21.4363 40.6863 21.5589 40.7581 21.5934C40.7876 21.655 40.8547 21.857 40.8082 22.3336C40.7408 23.0255 40.4502 24.0046 39.8572 25.2301C38.6799 27.6631 36.5085 30.6631 33.5858 33.5858C30.6631 36.5085 27.6632 38.6799 25.2301 39.8572C24.0046 40.4502 23.0255 40.7407 22.3336 40.8082C21.8571 40.8547 21.6551 40.7875 21.5934 40.7581C21.5589 40.6863 21.4363 40.358 21.6262 39.475C21.8562 38.4054 22.4689 36.9657 23.5038 35.2817C24.7575 33.2417 26.5497 30.9744 28.7621 28.762C30.9744 26.5497 33.2417 24.7574 35.2817 23.5037C36.9657 22.4689 38.4054 21.8562 39.475 21.6262ZM4.41189 29.2403L18.7597 43.5881C19.8813 44.7097 21.4027 44.9179 22.7217 44.7893C24.0585 44.659 25.5148 44.1631 26.9723 43.4579C29.9052 42.0387 33.2618 39.5667 36.4142 36.4142C39.5667 33.2618 42.0387 29.9052 43.4579 26.9723C44.1631 25.5148 44.659 24.0585 44.7893 22.7217C44.9179 21.4027 44.7097 19.8813 43.5881 18.7597L29.2403 4.41187C27.8527 3.02428 25.8765 3.02573 24.2861 3.36776C22.6081 3.72863 20.7334 4.58419 18.8396 5.74801C16.4978 7.18716 13.9881 9.18353 11.5858 11.5858C9.18354 13.988 7.18717 16.4978 5.74802 18.8396C4.58421 20.7334 3.72865 22.6081 3.36778 24.2861C3.02574 25.8765 3.02429 27.8527 4.41189 29.2403Z"
+                                fill="currentColor" fill-rule="evenodd"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-xl font-bold text-gray-900 dark:text-white">Quantify</h1>
+                </div>
+                <nav class="hidden md:flex items-center gap-8">
+                    <a class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                        href="#">Dashboard</a>
+                    <a class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                        href="#">Strategies</a>
+                    <a class="text-sm font-medium text-primary dark:text-primary" href="#">Backtests</a>
+                    <a class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                        href="#">Community</a>
+                    <a class="text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary"
+                        href="#">Learn</a>
+                </nav>
+                <div class="flex items-center gap-4">
+                    <button
+                        class="rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400">
+                        <svg fill="currentColor" height="20" viewBox="0 0 256 256" width="20"
+                            xmlns="http://www.w3.org/2000/svg">
+                            <path
+                                d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z">
+                            </path>
+                        </svg>
+                    </button>
+                    <div class="size-10 rounded-full bg-cover bg-center"
+                        style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBHBi34trWBoZrKg9jHz3isnT74FMV56zWzyd_hGBEnN1EpaRRy8WLhXQlZ_ZlpU_0KvrbHY2cwIYFza9Wge3fI-dsWifjkJdmQG21ff9MiDMmPzNFwbJx8Nrld11kuA0YjPHFgDSM753yGE6Dly8CFalazAc6UgEpJzk_l9oALKjdshzZQgjq5dONLyR07Yx4RnoW_eufxGhXqHWe2Hsa3p4oRVM0caHRlQIWZnbeQTyOzjRIV8DQv0Vpd8Nx-ThMaU5b_x1RsmA0");'>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main class="flex-1">
+            <div class="mx-auto max-w-4xl py-10 px-4 sm:px-6 lg:px-8">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">New Backtest</h1>
+                    <p class="mt-1 text-gray-500 dark:text-gray-400">Configure the parameters for your financial
+                        backtest.</p>
+                </div>
+                <div class="space-y-12">
+                    <div
+                        class="space-y-6 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Backtest Parameters</h2>
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="signals">Signals</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="signals" placeholder="Enter signals" type="text" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="initial-capital">Initial Capital ($)</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="initial-capital" placeholder="e.g. 10000" type="number" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="stop-loss">Stop Loss (%)</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="stop-loss" placeholder="e.g. 5" type="number" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="take-profit">Take Profit (%)</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="take-profit" placeholder="e.g. 10" type="number" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="holding-period">Holding Period (days)</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="holding-period" placeholder="e.g. 30" type="number" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="signal-type">Signal Type</label>
+                                <div class="mt-2">
+                                    <select
+                                        class="form-select block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="signal-type">
+                                        <option>Long Only</option>
+                                        <option>Short Only</option>
+                                        <option>Long &amp; Short</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="position-sizing">Position Sizing</label>
+                                <div class="mt-2">
+                                    <select
+                                        class="form-select block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="position-sizing">
+                                        <option>Equal Weight</option>
+                                        <option>Kelly Criterion</option>
+                                        <option>Volatility Targeting</option>
+                                        <option>ATR-based</option>
+                                        <option>Fixed Dollar</option>
+                                        <option>Percentage</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="sm:col-span-2 flex items-center justify-between">
+                                <span class="text-sm font-medium text-gray-900 dark:text-gray-300">Allow Leverage</span>
+                                <label class="relative inline-flex cursor-pointer items-center" for="allow-leverage">
+                                    <input class="peer sr-only" id="allow-leverage" type="checkbox" />
+                                    <div
+                                        class="peer h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-primary/50 dark:border-gray-600">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="space-y-6 rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
+                        <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Risk Management</h2>
+                        <div class="grid grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-2">
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="max-drawdown">Max Drawdown (%)</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="max-drawdown" placeholder="e.g. 20" type="number" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="max-positions">Max Positions</label>
+                                <div class="mt-2">
+                                    <input
+                                        class="block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="max-positions" placeholder="e.g. 10" type="number" />
+                                </div>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <label class="block text-sm font-medium leading-6 text-gray-900 dark:text-gray-300"
+                                    for="stop-loss-method">Stop Loss Method</label>
+                                <div class="mt-2">
+                                    <select
+                                        class="form-select block w-full rounded-lg border-0 bg-background-light/50 dark:bg-background-dark/50 py-2.5 px-3 text-gray-900 dark:text-white shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-700 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm sm:leading-6"
+                                        id="stop-loss-method">
+                                        <option>Standard</option>
+                                        <option>Trailing Stop</option>
+                                        <option>ATR Trailing Stop</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
+                        <button
+                            class="w-full sm:w-auto rounded-lg bg-gray-200 dark:bg-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-900 dark:text-white shadow-sm hover:bg-gray-300 dark:hover:bg-gray-600"
+                            type="button">Clear Results</button>
+                        <div class="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                            <button
+                                class="w-full sm:w-auto rounded-lg bg-primary/20 dark:bg-primary/30 px-4 py-2.5 text-sm font-semibold text-primary shadow-sm hover:bg-primary/30 dark:hover:bg-primary/40"
+                                type="button">Optimize Parameters</button>
+                            <button
+                                class="w-full sm:w-auto rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                                type="submit">Run Backtest</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+
+</html>

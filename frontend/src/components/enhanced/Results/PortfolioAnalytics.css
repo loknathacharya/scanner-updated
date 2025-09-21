@@ -1,0 +1,136 @@
+.portfolio-analytics-card {
+  background: linear-gradient(135deg, #2a2a2a 0%, #1e1e1e 100%);
+  color: #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid #444;
+}
+
+.analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.analytics-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.view-tabs {
+  border-bottom: 1px solid #444;
+}
+
+.view-tabs .MuiTab-root {
+  color: #b0b0b0;
+  font-weight: 500;
+}
+
+.view-tabs .Mui-selected {
+  color: #ff9800;
+}
+
+.view-tabs .MuiTabs-indicator {
+  background-color: #ff9800;
+}
+
+.metric-paper {
+  padding: 24px;
+  background-color: #333;
+  color: #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid #555;
+  transition: all 0.3s ease;
+}
+
+.metric-paper:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.metric-title {
+  font-weight: 500;
+  color: #b0b0b0;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-weight: 700;
+}
+
+.metric-value-pct {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.positive {
+  color: #4caf50;
+}
+
+.negative {
+  color: #f44336;
+}
+
+.chart-paper,
+.allocation-paper {
+  padding: 24px;
+  background-color: #333;
+  color: #e0e0e0;
+  border-radius: 8px;
+  border: 1px solid #555;
+}
+
+.chart-title,
+.allocation-title {
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.chart-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: #777;
+}
+
+.placeholder-icon {
+  font-size: 4rem;
+  margin-bottom: 8px;
+}
+
+.allocation-bar {
+  height: 8px;
+  border-radius: 4px;
+  background-color: #555;
+}
+
+.allocation-bar .MuiLinearProgress-bar {
+  background-color: #ff9800;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  text-align: center;
+  color: #777;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 16px;
+}
+
+.empty-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
