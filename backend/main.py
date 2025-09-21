@@ -13,9 +13,9 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import custom modules with error handling
-from .utils_module import DataProcessor
-from .filters_module import FilterEngine
-from .advanced_filter_engine import AdvancedFilterEngine
+from utils_module import DataProcessor
+from filters_module import FilterEngine
+from advanced_filter_engine import AdvancedFilterEngine
 
 from pydantic import BaseModel
 
@@ -259,7 +259,7 @@ async def delete_saved_filter(filter_name: str):
             detail=f"Error deleting filter: {str(e)}"
         )
 
-from .backtest_api import router as backtest_router
+from backtest_api import router as backtest_router
 app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
 
 # Phase 2 support: expose processed OHLCV data for frontend to call
