@@ -13,76 +13,9 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import custom modules with error handling
-try:
-    from utils_module import DataProcessor
-except ImportError:
-    print("Warning: utils_module not found. Creating a basic DataProcessor class.")
-    # Fallback DataProcessor class if the module doesn't exist
-    class DataProcessor:
-        def load_file(self, file, filename: str = ""):
-            """Basic file loader"""
-            # Use provided filename or fallback to file.filename
-            file_name = filename if filename else getattr(file, 'filename', '')
-            
-            if file_name.endswith('.csv'):
-                return pd.read_csv(file.file)
-            elif file_name.endswith(('.xlsx', '.xls')):
-                return pd.read_excel(file.file)
-            elif file_name.endswith('.parquet'):
-                return pd.read_parquet(file.file)
-            else:
-                raise ValueError("Unsupported file format")
-        
-        def detect_columns(self, df):
-            """Basic column detection"""
-            columns = df.columns.str.lower()
-            detected = {}
-            
-            # Look for date column
-            date_candidates = ['date', 'datetime', 'timestamp', 'time']
-            for col in date_candidates:
-                matches = [c for c in df.columns if col in c.lower()]
-                if matches:
-                    detected['date'] = matches[0]
-                    break
-            
-            # Look for symbol column
-            symbol_candidates = ['symbol', 'ticker', 'stock', 'code']
-            for col in symbol_candidates:
-                matches = [c for c in df.columns if col in c.lower()]
-                if matches:
-                    detected['symbol'] = matches[0]
-                    break
-                    
-            return detected
-        
-        def process_data(self, df, date_col, symbol_col, detected_cols):
-            """Basic data processing"""
-            # Convert date column to datetime
-            if date_col in df.columns:
-                df[date_col] = pd.to_datetime(df[date_col])
-            
-            return df
-
-try:
-    from filters_module import FilterEngine
-except ImportError:
-    print("Warning: filters_module not found. Creating a basic FilterEngine class.")
-    class FilterEngine:
-        def apply_filter(self, df, filter_definition, date_range):
-            """Basic filter application"""
-            # This is a placeholder - implement your filter logic
-            return df.head(10)  # Return first 10 rows as example
-
-try:
-    from advanced_filter_engine import AdvancedFilterEngine
-except ImportError:
-    print("Warning: advanced_filter_engine not found. Creating a basic AdvancedFilterEngine class.")
-    class AdvancedFilterEngine:
-        def apply_filter(self, df, filter_definition):
-            """Basic advanced filter application"""
-            # This is a placeholder - implement your filter logic
-            return df.head(10)  # Return first 10 rows as example
+from .utils_module import DataProcessor
+from .filters_module import FilterEngine
+from .advanced_filter_engine import AdvancedFilterEngine
 
 from pydantic import BaseModel
 
@@ -94,7 +27,7 @@ advanced_filter_engine = AdvancedFilterEngine()
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003"],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -326,21 +259,8 @@ async def delete_saved_filter(filter_name: str):
             detail=f"Error deleting filter: {str(e)}"
         )
 
-# Add backtest API endpoints
-try:
-    from .backtest_api import router as backtest_router
-    app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
-    print("Backtest API endpoints registered successfully (relative import)")
-except ImportError as e:
-    # Fallback to absolute import when running without package context
-    try:
-        from backtest_api import router as backtest_router
-        app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
-        print("Backtest API endpoints registered successfully (absolute import fallback)")
-    except Exception as inner_e:
-        print(f"Could not import backtest API (fallback): {inner_e}")
-except Exception as e:
-    print(f"Error registering backtest API: {e}")
+from .backtest_api import router as backtest_router
+app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
 
 # Phase 2 support: expose processed OHLCV data for frontend to call
 from fastapi import Query
