@@ -2372,187 +2372,669 @@ if 'backtest_results' in st.session_state and not st.session_state['backtest_res
         st.metric("Avg Position", f"${performance_metrics.get('Average Position Size ($)', 0):,.0f}")
         st.metric("Max Position", f"${performance_metrics.get('Max Position Size ($)', 0):,.0f}")
 
-    # Tabs for detailed analysis
-    tab1, tab_invested, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    # Tabs for detailed analysis - matching requested structure
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📈 Equity Curve", "📊 Invested Capital", "📋 Trade Log", "🏢 Per-Instrument",
         "📊 Trade Analysis", "📏 Position Sizing", "🎲 Monte Carlo", "⚖️ Leverage Metrics"
     ])
     
+    # Tab 1: 📈 Equity Curve - Portfolio performance with drawdown overlay
     with tab1:
-        st.markdown("### Portfolio Performance Over Time")
+        st.markdown("### 📈 Equity Curve - Portfolio Performance with Drawdown Overlay")
+        
         equity_curve = performance_metrics.get("Equity Curve")
         if equity_curve is not None:
-            fig = px.line(equity_curve, x=equity_curve.index, y='Portfolio Value', 
-                        title=f"Portfolio Value Over Time ({signal_type.upper()} Signals)",
-                        labels={'Portfolio Value': 'Portfolio Value ($)', 'Exit Date': 'Date'})
-            fig.add_hline(y=initial_capital, line_dash="dash", 
-                        annotation_text=f"Starting Capital: ${initial_capital:,}")
-            fig.update_layout(hovermode='x', height=500)
+            # Create subplots for equity curve and drawdown
+            fig = make_subplots(
+                rows=2, cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.1,
+                subplot_titles=('Portfolio Value Over Time', 'Drawdown Analysis'),
+                row_heights=[0.7, 0.3]
+            )
+            
+            # Equity curve
+            fig.add_trace(
+                go.Scatter(
+                    x=equity_curve.index,
+                    y=equity_curve['Portfolio Value'],
+                    mode='lines',
+                    name='Portfolio Value',
+                    line=dict(color='#1f77b4', width=2)
+                ),
+                row=1, col=1
+            )
+            
+            # Add starting capital line
+            fig.add_hline(
+                y=initial_capital,
+                line_dash="dash",
+                line_color="green",
+                annotation_text=f"Starting Capital: ${initial_capital:,}",
+                row="1", col="1"
+            )
+            
+            # Calculate drawdown
+            portfolio_values = equity_curve['Portfolio Value']
+            running_max = portfolio_values.cummax()
+            drawdown = ((portfolio_values - running_max) / running_max) * 100
+            
+            # Drawdown chart
+            fig.add_trace(
+                go.Scatter(
+                    x=equity_curve.index,
+                    y=drawdown,
+                    mode='lines',
+                    name='Drawdown',
+                    line=dict(color='#ff7f0e', width=2),
+                    fill='tozeroy',
+                    fillcolor='rgba(255, 127, 14, 0.3)'
+                ),
+                row="2", col="1"
+            )
+            
+            # Add zero line to drawdown
+            fig.add_hline(
+                y=0,
+                line_dash="dash",
+                line_color="red",
+                row="2", col="1"
+            )
+            
+            fig.update_layout(
+                title=f"Portfolio Performance & Drawdown Analysis ({signal_type.upper()} Signals)",
+                hovermode='x',
+                height=600,
+                showlegend=True
+            )
+            
+            fig.update_yaxes(title_text="Portfolio Value ($)", row=1, col=1)
+            fig.update_yaxes(title_text="Drawdown (%)", row=2, col=1)
+            
             st.plotly_chart(fig, use_container_width=True)
+            
+            # Performance summary
             final_value = equity_curve['Portfolio Value'].iloc[-1]
             total_return = ((final_value / initial_capital) - 1) * 100
-            st.info(f"📊 Final Portfolio Value: ${final_value:,.0f} | Total Return: {total_return:.2f}%")
+            max_drawdown = drawdown.min()
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Final Portfolio Value", f"${final_value:,.0f}")
+            with col2:
+                st.metric("Total Return", f"{total_return:.2f}%")
+            with col3:
+                st.metric("Max Drawdown", f"{max_drawdown:.2f}%")
+                
+        else:
+            st.warning("⚠️ No equity curve data available.")
 
-    with tab_invested:
-        st.markdown("### Net Invested Value Over Time")
+    # Tab 2: 📊 Invested Capital - Capital deployment timeline analysis
+    with tab2:
+        st.markdown("### 📊 Invested Capital - Capital Deployment Timeline Analysis")
+        
         invested_value_df = calculate_invested_value_over_time(trade_log_df)
         if not invested_value_df.empty:
-            fig = px.line(invested_value_df, x='Date', y='Invested Value',
-                        title="Net Invested Value Over Time",
-                        labels={'Invested Value': 'Invested Value ($)', 'Date': 'Date'})
-            fig.update_layout(hovermode='x', height=500)
+            # Create timeline chart
+            fig = go.Figure()
+            
+            # Add invested value line
+            fig.add_trace(go.Scatter(
+                x=invested_value_df['Date'],
+                y=invested_value_df['Invested Value'],
+                mode='lines+markers',
+                name='Invested Value',
+                line=dict(color='#2ca02c', width=3),
+                marker=dict(size=4)
+            ))
+            
+            # Add portfolio value if available
+            if 'Equity Curve' in performance_metrics and performance_metrics['Equity Curve'] is not None:
+                equity_curve = performance_metrics['Equity Curve']
+                fig.add_trace(go.Scatter(
+                    x=equity_curve.index,
+                    y=equity_curve['Portfolio Value'],
+                    mode='lines',
+                    name='Portfolio Value',
+                    line=dict(color='#1f77b4', width=2, dash='dash')
+                ))
+            
+            fig.update_layout(
+                title="Capital Deployment Timeline",
+                xaxis_title="Date",
+                yaxis_title="Value ($)",
+                hovermode='x',
+                height=500,
+                showlegend=True
+            )
+            
             st.plotly_chart(fig, use_container_width=True)
-            st.markdown("#### Invested Value Data")
-            st.dataframe(invested_value_df.style.format({'Invested Value': '${:,.0f}'}), use_container_width=True)
+            
+            # Invested value statistics
+            st.markdown("#### 📊 Invested Value Statistics")
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Max Invested", f"${invested_value_df['Invested Value'].max():,.0f}")
+            with col2:
+                st.metric("Avg Invested", f"${invested_value_df['Invested Value'].mean():,.0f}")
+            with col3:
+                st.metric("Total Deployed", f"${invested_value_df['Invested Value'].sum():,.0f}")
+            with col4:
+                st.metric("Utilization Rate", f"{(invested_value_df['Invested Value'].max() / initial_capital * 100):.1f}%")
+            
+            # Detailed invested value data
+            st.markdown("#### 📋 Detailed Invested Value Data")
+            st.dataframe(
+                invested_value_df.style.format({'Invested Value': '${:,.0f}'}),
+                use_container_width=True
+            )
+            
         else:
-            st.info("No invested value data to display.")
+            st.warning("⚠️ No invested value data to display.")
 
-    with tab2:
-        st.markdown("### Detailed Trade Log")
+    # Tab 3: 📋 Trade Log - Enhanced table with advanced filtering
+    with tab3:
+        st.markdown("### 📋 Trade Log - Enhanced Table with Advanced Filtering")
         
-        # Add filtering options for trade log
-        st.markdown("#### 🔍 Filter Options")
-        filter_col1, filter_col2, filter_col3 = st.columns(3)
+        # Enhanced filtering options
+        st.markdown("#### 🔍 Advanced Filter Options")
+        filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
         
         with filter_col1:
             all_tickers = ['All'] + sorted(trade_log_df['Ticker'].unique())
-            ticker_filter = st.selectbox("Filter by Ticker:", all_tickers, key="ticker_filter_2")
+            ticker_filter = st.selectbox("Filter by Ticker:", all_tickers, key="ticker_filter_3")
         
         with filter_col2:
-            outcome_filter = st.selectbox("Filter by Outcome:", ['All', 'Winners', 'Losers'], key="outcome_filter_2")
+            all_exit_reasons = ['All'] + sorted(trade_log_df['Exit Reason'].unique())
+            exit_reason_filter = st.selectbox("Filter by Exit Reason:", all_exit_reasons, key="exit_reason_filter_3")
             
         with filter_col3:
-            all_exit_reasons = ['All'] + sorted(trade_log_df['Exit Reason'].unique())
-            exit_reason_filter = st.selectbox("Filter by Exit Reason:", all_exit_reasons, key="exit_reason_filter_2")
+            outcome_filter = st.selectbox("Filter by Outcome:", ['All', 'Winners', 'Losers'], key="outcome_filter_3")
             
+        with filter_col4:
+            # Date range filter
+            min_date = trade_log_df['Entry Date'].min().date()
+            max_date = trade_log_df['Exit Date'].max().date()
+            start_date_filter = st.date_input("Start Date", min_date, min_value=min_date, max_value=max_date, key="start_date_filter_3")
+            end_date_filter = st.date_input("End Date", max_date, min_value=min_date, max_value=max_date, key="end_date_filter_3")
+        
         # Apply filters
         filtered_df = trade_log_df.copy()
+        
         if ticker_filter != 'All':
             filtered_df = filtered_df[filtered_df['Ticker'] == ticker_filter]
+        
+        if exit_reason_filter != 'All':
+            filtered_df = filtered_df[filtered_df['Exit Reason'] == exit_reason_filter]
+            
         if outcome_filter == 'Winners':
             filtered_df = filtered_df[filtered_df['Profit/Loss (%)'] > 0]
         elif outcome_filter == 'Losers':
             filtered_df = filtered_df[filtered_df['Profit/Loss (%)'] <= 0]
-        if exit_reason_filter != 'All':
-            filtered_df = filtered_df[filtered_df['Exit Reason'] == exit_reason_filter]
             
-        st.dataframe(filtered_df)
-
-    with tab3:
-        st.markdown("### Performance by Instrument")
-        instrument_performance = trade_log_df.groupby('Ticker').agg({
-            'Profit/Loss (%)': ['mean', 'sum', 'count', 'std'],
-            'P&L ($)': ['mean', 'sum'],
-            'Position Value': 'mean'
-        })
-        instrument_performance.columns = [
-            'Avg P/L (%)', 'Total P/L (%)', 'Trades', 'Volatility (%)',
-            'Avg P/L ($)', 'Total P/L ($)', 'Avg Position ($)'
+        # Date range filter
+        filtered_df = filtered_df[
+            (filtered_df['Entry Date'].dt.date >= start_date_filter) &
+            (filtered_df['Exit Date'].dt.date <= end_date_filter)
         ]
+        
+        # Display filtered results
+        st.markdown(f"#### 📊 Filtered Results ({len(filtered_df)} trades shown)")
+        
+        if not filtered_df.empty:
+            # Enhanced table with sorting and highlighting
+            styled_df = filtered_df.style.format({
+                'Entry Price': '${:,.2f}',
+                'Exit Price': '${:,.2f}',
+                'Position Value': '${:,.0f}',
+                'P&L ($)': '${:,.0f}',
+                'Profit/Loss (%)': '{:+.2f}%',
+                'Days Held': '{:.0f}',
+                'Portfolio Value': '${:,.0f}'
+            })
+            
+            # Color coding for wins/losses
+            styled_df = styled_df.background_gradient(
+                subset=['Profit/Loss (%)'],
+                cmap='RdYlGn',
+                vmin=-20,
+                vmax=20
+            )
+            
+            st.dataframe(styled_df, use_container_width=True, height=400)
+            
+            # Export filtered data
+            csv = filtered_df.to_csv(index=False)
+            st.download_button(
+                "📥 Download Filtered Trade Log",
+                data=csv,
+                file_name=f"filtered_trades_{len(filtered_df)}_{signal_type}.csv",
+                mime="text/csv"
+            )
+        else:
+            st.info("📭 No trades match the selected filters.")
+
+    # Tab 4: 🏢 Per-Instrument - Performance breakdown by symbol
+    with tab4:
+        st.markdown("### 🏢 Per-Instrument - Performance Breakdown by Symbol")
+        
+        # Enhanced instrument performance analysis
+        instrument_performance = trade_log_df.groupby('Ticker').agg({
+            'Profit/Loss (%)': ['mean', 'sum', 'count', 'std', 'min', 'max'],
+            'P&L ($)': ['mean', 'sum', 'min', 'max'],
+            'Position Value': ['mean', 'sum'],
+            'Days Held': 'mean',
+            'Exit Reason': lambda x: x.mode().iloc[0] if not x.empty else 'Unknown'
+        })
+        
+        instrument_performance.columns = [
+            'Avg P/L (%)', 'Total P/L (%)', 'Trades', 'Volatility (%)', 'Min P/L (%)', 'Max P/L (%)',
+            'Avg P/L ($)', 'Total P/L ($)', 'Min P/L ($)', 'Max P/L ($)',
+            'Avg Position ($)', 'Total Position ($)',
+            'Avg Days Held', 'Most Common Exit Reason'
+        ]
+        
         instrument_performance = instrument_performance.sort_values(by='Total P/L ($)', ascending=False)
+        
+        # Calculate win rates
         win_rates = trade_log_df.groupby('Ticker').apply(
             lambda x: (x['Profit/Loss (%)'] > 0).sum() / len(x) * 100
         ).rename('Win Rate (%)')
+        
         instrument_performance = instrument_performance.join(win_rates)
+        
+        # Display performance table
+        st.markdown("#### 📊 Instrument Performance Summary")
         st.dataframe(
             instrument_performance.style.format({
                 'Avg P/L (%)': '{:.2f}%', 'Total P/L (%)': '{:.2f}%',
                 'Volatility (%)': '{:.2f}%', 'Win Rate (%)': '{:.1f}%',
                 'Avg P/L ($)': '${:,.0f}', 'Total P/L ($)': '${:,.0f}',
-                'Avg Position ($)': '${:,.0f}'
+                'Min P/L (%)': '{:.2f}%', 'Max P/L (%)': '{:.2f}%',
+                'Min P/L ($)': '${:,.0f}', 'Max P/L ($)': '${:,.0f}',
+                'Avg Position ($)': '${:,.0f}', 'Total Position ($)': '${:,.0f}',
+                'Avg Days Held': '{:.1f}'
             }).background_gradient(subset=['Total P/L ($)'], cmap='RdYlGn'),
             use_container_width=True
         )
+        
+        # Performance charts
+        st.markdown("#### 📈 Performance Visualization")
+        chart_col1, chart_col2 = st.columns(2)
+        
+        with chart_col1:
+            # Total P&L by instrument
+            fig = px.bar(
+                instrument_performance.reset_index(),
+                x='Ticker',
+                y='Total P/L ($)',
+                title="Total P&L by Instrument",
+                labels={'Total P/L ($)': 'Total P&L ($)'},
+                color='Total P/L ($)',
+                color_continuous_scale='RdYlGn'
+            )
+            fig.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with chart_col2:
+            # Win rate by instrument
+            fig = px.bar(
+                instrument_performance.reset_index(),
+                x='Ticker',
+                y='Win Rate (%)',
+                title="Win Rate by Instrument",
+                labels={'Win Rate (%)': 'Win Rate (%)'},
+                color='Win Rate (%)',
+                color_continuous_scale='Blues'
+            )
+            fig.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
 
-    with tab4:
-        st.markdown("### Trade Analysis Dashboard")
+    # Tab 5: 📊 Trade Analysis - Distribution charts, exit reasons, P&L analysis
+    with tab5:
+        st.markdown("### 📊 Trade Analysis - Distribution Charts, Exit Reasons & P&L Analysis")
         
         analysis_col1, analysis_col2 = st.columns(2)
         
         with analysis_col1:
             # Exit reason distribution
+            st.markdown("#### 🎯 Trade Exit Reasons")
             exit_reasons = trade_log_df['Exit Reason'].value_counts()
-            fig = px.pie(values=exit_reasons.values, names=exit_reasons.index,
-                       title="Trade Exit Reasons",
-                       color_discrete_sequence=px.colors.qualitative.Set3)
+            fig = px.pie(
+                values=exit_reasons.values,
+                names=exit_reasons.index,
+                title="Trade Exit Reasons Distribution",
+                color_discrete_sequence=px.colors.qualitative.Set3
+            )
+            fig.update_traces(textposition='inside', textinfo='percent+label')
             st.plotly_chart(fig, use_container_width=True)
             
-            # Holding period distribution
-            fig = px.histogram(trade_log_df, x='Days Held', nbins=20,
-                             title="Holding Period Distribution",
-                             labels={'Days Held': 'Days Held'})
+            # Exit reasons by P&L
+            st.markdown("#### 📊 Exit Reasons vs Performance")
+            exit_pl = trade_log_df.groupby('Exit Reason')['Profit/Loss (%)'].agg(['mean', 'count']).reset_index()
+            fig = px.bar(
+                exit_pl,
+                x='Exit Reason',
+                y='mean',
+                title="Average P&L by Exit Reason",
+                labels={'mean': 'Average P&L (%)', 'Exit Reason': 'Exit Reason'},
+                color='count',
+                color_continuous_scale='Viridis',
+                hover_data=['count']
+            )
+            fig.add_hline(y=0, line_dash="dash", line_color="red")
             st.plotly_chart(fig, use_container_width=True)
         
         with analysis_col2:
-            # P&L distribution (percentage)
-            fig = px.histogram(trade_log_df, x='Profit/Loss (%)', nbins=25,
-                             title="P&L Distribution (%)",
-                             color_discrete_sequence=['#1f77b4'])
-            fig.add_vline(x=0, line_dash="dash", line_color="red",
-                        annotation_text="Break-even")
+            # P&L distribution analysis
+            st.markdown("#### 💰 P&L Distribution Analysis")
+            fig = px.histogram(
+                trade_log_df,
+                x='Profit/Loss (%)',
+                nbins=30,
+                title="P&L Distribution (%)",
+                labels={'Profit/Loss (%)': 'Profit/Loss (%)'},
+                color_discrete_sequence=['#1f77b4']
+            )
+            fig.add_vline(x=0, line_dash="dash", line_color="red", annotation_text="Break-even")
             st.plotly_chart(fig, use_container_width=True)
             
-            # P&L over time
-            fig = px.scatter(trade_log_df, x='Exit Date', y='Profit/Loss (%)',
-                           color='Exit Reason', size='Position Value',
-                           title="P&L Over Time",
-                           hover_data=['Ticker', 'Days Held'])
+            # P&L over time with trend
+            st.markdown("#### 📈 P&L Trend Analysis")
+            fig = px.scatter(
+                trade_log_df,
+                x='Exit Date',
+                y='Profit/Loss (%)',
+                color='Exit Reason',
+                size='Position Value',
+                title="P&L Over Time",
+                hover_data=['Ticker', 'Days Held'],
+                trendline='ols'
+            )
             fig.add_hline(y=0, line_dash="dash", line_color="red")
             st.plotly_chart(fig, use_container_width=True)
+        
+        # Additional analysis section
+        st.markdown("#### 📊 Advanced Trade Analytics")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Trade duration analysis
+            fig = px.box(
+                trade_log_df,
+                y='Days Held',
+                title="Trade Duration Distribution",
+                labels={'Days Held': 'Days Held'},
+                color_discrete_sequence=['#1f77b4']
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Position size vs performance
+            fig = px.scatter(
+                trade_log_df,
+                x='Position Value',
+                y='Profit/Loss (%)',
+                color='Ticker',
+                size='Days Held',
+                title="Position Size vs Performance",
+                hover_data=['Entry Date', 'Exit Date'],
+                opacity=0.7
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col3:
+            # Monthly performance summary
+            trade_log_df['Month'] = trade_log_df['Exit Date'].dt.to_period('M')
+            monthly_performance = trade_log_df.groupby('Month').agg({
+                'P&L ($)': 'sum',
+                'Profit/Loss (%)': 'mean',
+                'Total Trades': 'count'
+            }).reset_index()
+            
+            fig = px.line(
+                monthly_performance,
+                x='Month',
+                y='P&L ($)',
+                title="Monthly P&L Trend",
+                labels={'P&L ($)': 'Monthly P&L ($)', 'Month': 'Month'},
+                markers=True
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
-    with tab5:
-        st.markdown("### Position Sizing Analysis")
+    # Tab 6: 📏 Position Sizing - Position size distribution and analysis
+    with tab6:
+        st.markdown("### 📏 Position Sizing - Position Size Distribution and Analysis")
         
         pos_col1, pos_col2 = st.columns(2)
         
         with pos_col1:
             # Position size distribution
-            fig = px.histogram(trade_log_df, x='Position Value', nbins=20,
-                             title="Position Size Distribution",
-                             labels={'Position Value': 'Position Value ($)'},
-                             color_discrete_sequence=['#ff7f0e'])
+            st.markdown("#### 📊 Position Size Distribution")
+            fig = px.histogram(
+                trade_log_df,
+                x='Position Value',
+                nbins=25,
+                title="Position Size Distribution",
+                labels={'Position Value': 'Position Value ($)'},
+                color_discrete_sequence=['#ff7f0e']
+            )
             st.plotly_chart(fig, use_container_width=True)
+            
+            # Position size statistics
+            st.markdown("#### 📊 Position Size Statistics")
+            pos_stats = trade_log_df['Position Value'].describe()
+            st.dataframe(pos_stats.to_frame().style.format('${:,.0f}'), use_container_width=True)
         
         with pos_col2:
             # Position size over time
-            fig = px.scatter(trade_log_df, x='Entry Date', y='Position Value',
-                           color='Profit/Loss (%)',
-                           title="Position Size Over Time",
-                           labels={'Position Value': 'Position Value ($)'},
-                           hover_data=['Ticker', 'P&L ($)'],
-                           color_continuous_scale='RdYlGn')
+            st.markdown("#### 📈 Position Size Evolution")
+            fig = px.scatter(
+                trade_log_df,
+                x='Entry Date',
+                y='Position Value',
+                color='Profit/Loss (%)',
+                size='Position Value',
+                title="Position Size Over Time",
+                labels={'Position Value': 'Position Value ($)'},
+                hover_data=['Ticker', 'P&L ($)'],
+                color_continuous_scale='RdYlGn'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Position size vs performance correlation
+            st.markdown("#### 🔗 Position Size vs Performance")
+            if len(trade_log_df) > 1:
+                correlation = trade_log_df['Position Value'].corr(trade_log_df['Profit/Loss (%)'])
+                st.metric("Position Size-Performance Correlation", f"{correlation:.3f}")
+                
+                fig = px.scatter(
+                    trade_log_df,
+                    x='Position Value',
+                    y='Profit/Loss (%)',
+                    trendline='ols',
+                    title="Position Size vs P&L Relationship",
+                    labels={'Position Value': 'Position Value ($)', 'Profit/Loss (%)': 'P&L (%)'},
+                    color_continuous_scale='RdYlGn'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        # Advanced position sizing analysis
+        st.markdown("#### 🎯 Advanced Position Sizing Analysis")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            # Position size by instrument
+            pos_by_instrument = trade_log_df.groupby('Ticker')['Position Value'].agg(['mean', 'std', 'count']).reset_index()
+            fig = px.bar(
+                pos_by_instrument,
+                x='Ticker',
+                y='mean',
+                title="Average Position Size by Instrument",
+                labels={'mean': 'Average Position Value ($)'},
+                error_y='std',
+                color='mean',
+                color_continuous_scale='Viridis'
+            )
+            fig.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Position size distribution by outcome
+            fig = px.box(
+                trade_log_df,
+                x='Profit/Loss (%)',
+                y='Position Value',
+                title="Position Size by Trade Outcome",
+                labels={'Profit/Loss (%)': 'P&L (%)', 'Position Value': 'Position Value ($)'},
+                color='Profit/Loss (%)',
+                color_continuous_scale='RdYlGn'
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col3:
+            # Cumulative position size
+            trade_log_df_sorted = trade_log_df.sort_values('Entry Date')
+            trade_log_df_sorted['Cumulative Position'] = trade_log_df_sorted['Position Value'].cumsum()
+            
+            fig = px.line(
+                trade_log_df_sorted,
+                x='Entry Date',
+                y='Cumulative Position',
+                title="Cumulative Position Size Over Time",
+                labels={'Cumulative Position': 'Cumulative Position Value ($)'}
+            )
             st.plotly_chart(fig, use_container_width=True)
 
-    with tab6:
-        st.markdown("### Monte Carlo Analysis")
+    # Tab 7: 🎲 Monte Carlo - Risk simulation and scenario analysis
+    with tab7:
+        st.markdown("### 🎲 Monte Carlo - Risk Simulation and Scenario Analysis")
         
         if len(trade_log_df) > 10:
             returns = trade_log_df['Profit/Loss (%)'] / 100
             
-            n_simulations = st.slider("Number of Simulations", 100, 2000, 1000, key="mc_sims_2")
-            n_trades = st.slider("Future Trades to Simulate", 10, 200, 50, key="mc_trades_2")
+            # Simulation parameters
+            col1, col2 = st.columns(2)
+            with col1:
+                n_simulations = st.slider("Number of Simulations", 100, 5000, 1000, key="mc_sims_7")
+                n_trades = st.slider("Future Trades to Simulate", 10, 500, 100, key="mc_trades_7")
             
-            if st.button("🎲 Run Monte Carlo Simulation", key="mc_run_2"):
+            with col2:
+                confidence_level = st.slider("Confidence Level (%)", 80, 99, 95, key="confidence_level_7")
+                initial_sim_capital = st.number_input("Simulation Initial Capital",
+                                                    min_value=1000,
+                                                    max_value=10000000,
+                                                    value=initial_capital,
+                                                    step=1000, key="sim_capital_7")
+            
+            if st.button("🎲 Run Monte Carlo Simulation", key="mc_run_7"):
                 with st.spinner("Running Monte Carlo simulation..."):
                     simulations = []
                     for _ in range(n_simulations):
                         sim_returns = np.random.choice(returns, n_trades, replace=True)
-                        final_return = np.prod(1 + sim_returns) - 1
-                        simulations.append(final_return * 100)
+                        final_value = initial_sim_capital * np.prod(1 + sim_returns)
+                        final_return = (final_value / initial_sim_capital - 1) * 100
+                        simulations.append({
+                            'Final_Value': final_value,
+                            'Final_Return': final_return,
+                            'Total_Return': np.prod(1 + sim_returns) - 1
+                        })
                     
-                    fig = px.histogram(simulations, nbins=50,
-                                     title=f"Monte Carlo Simulation: {n_trades} Future Trades ({n_simulations} simulations)")
+                    simulations_df = pd.DataFrame(simulations)
+                    
+                    # Results summary
+                    st.markdown("#### 📊 Simulation Results Summary")
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Mean Final Return", f"{simulations_df['Final_Return'].mean():.2f}%")
+                    with col2:
+                        st.metric("Median Final Return", f"{simulations_df['Final_Return'].median():.2f}%")
+                    with col3:
+                        st.metric("Std Deviation", f"{simulations_df['Final_Return'].std():.2f}%")
+                    with col4:
+                        st.metric("Best Case", f"{simulations_df['Final_Return'].max():.2f}%")
+                    
+                    # Confidence intervals
+                    lower_percentile = (100 - confidence_level) / 2
+                    upper_percentile = 100 - lower_percentile
+                    
+                    lower_bound = simulations_df['Final_Return'].quantile(lower_percentile / 100)
+                    upper_bound = simulations_df['Final_Return'].quantile(upper_percentile / 100)
+                    mean_return = simulations_df['Final_Return'].mean()
+                    
+                    st.markdown(f"#### 📈 {confidence_level}% Confidence Interval")
+                    st.info(f"Lower Bound: {lower_bound:.2f}% | Mean: {mean_return:.2f}% | Upper Bound: {upper_bound:.2f}%")
+                    
+                    # Distribution chart
+                    st.markdown("#### 📊 Return Distribution")
+                    fig = px.histogram(
+                        simulations_df,
+                        x='Final_Return',
+                        nbins=50,
+                        title=f"Monte Carlo Simulation: {n_trades} Future Trades ({n_simulations} simulations)",
+                        labels={'Final_Return': 'Final Return (%)'}
+                    )
+                    
+                    # Add confidence interval lines
+                    fig.add_vline(
+                        x=lower_bound,
+                        line_dash="dash",
+                        line_color="red",
+                        annotation_text=f"{lower_percentile:.1f}%"
+                    )
+                    fig.add_vline(
+                        x=upper_bound,
+                        line_dash="dash",
+                        line_color="green",
+                        annotation_text=f"{upper_percentile:.1f}%"
+                    )
+                    fig.add_vline(
+                        x=mean_return,
+                        line_dash="solid",
+                        line_color="blue",
+                        annotation_text="Mean"
+                    )
+                    
                     st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Risk metrics
+                    st.markdown("#### ⚠️ Risk Analysis")
+                    risk_metrics = {
+                        'Probability of Loss': (simulations_df['Final_Return'] < 0).mean() * 100,
+                        'Probability of Gain': (simulations_df['Final_Return'] > 0).mean() * 100,
+                        'Maximum Drawdown_Sim': (1 - simulations_df['Final_Value'] / initial_sim_capital).max() * 100,
+                        'Value at Risk (VaR)': simulations_df['Final_Return'].quantile((100 - confidence_level) / 100)
+                    }
+                    
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric("Probability of Loss", f"{risk_metrics['Probability of Loss']:.1f}%")
+                    with col2:
+                        st.metric("Probability of Gain", f"{risk_metrics['Probability of Gain']:.1f}%")
+                    with col3:
+                        st.metric("Max Simulated Drawdown", f"{risk_metrics['Maximum Drawdown_Sim']:.2f}%")
+                    with col4:
+                        st.metric(f"VaR ({100-confidence_level}%)", f"{risk_metrics['Value at Risk (VaR)']:.2f}%")
+                    
+                    # Export simulation results
+                    csv = simulations_df.to_csv(index=False)
+                    st.download_button(
+                        "📥 Download Simulation Results",
+                        data=csv,
+                        file_name=f"monte_carlo_results_{n_simulations}sims_{n_trades}trades.csv",
+                        mime="text/csv"
+                    )
         else:
             st.warning("⚠️ Need at least 10 trades to run Monte Carlo simulation")
 
-    with tab7:
-        st.markdown("### ⚖️ Leverage Metrics Analysis")
+    # Tab 8: ⚖️ Leverage Metrics - Leverage usage and risk dashboard
+    with tab8:
+        st.markdown("### ⚖️ Leverage Metrics - Leverage Usage and Risk Dashboard")
         
         leverage_metrics = performance_metrics.get('Leverage Metrics', {})
         
         if leverage_metrics:
-            st.markdown("#### 📊 Key Leverage Metrics")
+            st.markdown("#### 📊 Key Leverage Metrics Dashboard")
             leverage_col1, leverage_col2, leverage_col3, leverage_col4 = st.columns(4)
             
             with leverage_col1:
@@ -2563,10 +3045,72 @@ if 'backtest_results' in st.session_state and not st.session_state['backtest_res
                 st.metric("Leverage Risk Score", f"{leverage_metrics.get('Leverage Risk Score', 0):.2f}")
             with leverage_col4:
                 st.metric("Leverage-Performance Correlation", f"{leverage_metrics.get('Leverage Performance Correlation', 0):.3f}")
-
-            # Leverage distribution chart
+            
+            # Comprehensive leverage dashboard
+            st.markdown("#### 📈 Comprehensive Leverage Analysis Dashboard")
+            dashboard_fig = create_leverage_risk_dashboard(trade_log_df)
+            if dashboard_fig:
+                st.plotly_chart(dashboard_fig, use_container_width=True)
+            
+            # Leverage distribution analysis
+            st.markdown("#### 📊 Leverage Distribution Analysis")
             leverage_dist_fig = create_leverage_distribution_chart(trade_log_df)
             if leverage_dist_fig:
                 st.plotly_chart(leverage_dist_fig, use_container_width=True)
+            
+            # Leverage performance correlation
+            st.markdown("#### 🔗 Leverage vs Performance Analysis")
+            leverage_perf_fig = create_leverage_performance_scatter(trade_log_df)
+            if leverage_perf_fig:
+                st.plotly_chart(leverage_perf_fig, use_container_width=True)
+            
+            # Leverage timeline
+            st.markdown("#### 📈 Leverage Usage Timeline")
+            leverage_timeline_fig = create_leverage_timeline(trade_log_df)
+            if leverage_timeline_fig:
+                st.plotly_chart(leverage_timeline_fig, use_container_width=True)
+            
+            # Detailed leverage metrics table
+            st.markdown("#### 📋 Detailed Leverage Metrics")
+            leverage_data = trade_log_df[['Ticker', 'Entry Date', 'Leverage Used', 'Profit/Loss (%)', 'Position Value']].copy()
+            leverage_data['Performance Category'] = leverage_data['Profit/Loss (%)'].apply(
+                lambda x: 'Winner' if x > 0 else 'Loser'
+            )
+            
+            st.dataframe(
+                leverage_data.style.format({
+                    'Leverage Used': '{:.2f}x',
+                    'Profit/Loss (%)': '{:+.2f}%',
+                    'Position Value': '${:,.0f}'
+                }).background_gradient(subset=['Leverage Used'], cmap='YlOrRd'),
+                use_container_width=True
+            )
+            
+            # Risk assessment
+            st.markdown("#### ⚠️ Leverage Risk Assessment")
+            high_leverage_threshold = 2.0
+            extreme_leverage_threshold = 3.0
+            
+            high_leverage_trades = (trade_log_df['Leverage Used'] > high_leverage_threshold).sum()
+            extreme_leverage_trades = (trade_log_df['Leverage Used'] > extreme_leverage_threshold).sum()
+            total_trades = len(trade_log_df)
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("High Leverage Trades (>2x)", f"{high_leverage_trades} ({high_leverage_trades/total_trades*100:.1f}%)")
+            with col2:
+                st.metric("Extreme Leverage Trades (>3x)", f"{extreme_leverage_trades} ({extreme_leverage_trades/total_trades*100:.1f}%)")
+            with col3:
+                st.metric("Safe Leverage Trades (≤2x)", f"{total_trades - high_leverage_trades} ({(total_trades - high_leverage_trades)/total_trades*100:.1f}%)")
+            
+            # Leverage recommendations
+            st.markdown("#### 💡 Leverage Usage Recommendations")
+            if leverage_metrics.get('Average Leverage', 0) > 2.0:
+                st.warning("⚠️ High average leverage detected. Consider reducing position sizes to manage risk.")
+            elif leverage_metrics.get('Average Leverage', 0) > 1.5:
+                st.info("ℹ️ Moderate leverage usage. Monitor performance closely during volatile periods.")
+            else:
+                st.success("✅ Conservative leverage usage. Good risk management practices.")
+                
         else:
-            st.warning("⚠️ No leverage data available.")
+            st.warning("⚠️ No leverage data available. This may be because no leverage was used in the backtest.")
