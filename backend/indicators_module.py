@@ -304,6 +304,10 @@ class TechnicalIndicators:
     
     def add_all_indicators(self, df: pd.DataFrame, offset: int = 0, timeframe: str = 'daily') -> pd.DataFrame:
         """Add all indicators with offset and timeframe support"""
+        import time
+        start_time = time.time()
+        print(f"DEBUG: Starting indicators calculation for {len(df)} rows, {df['symbol'].nunique()} symbols")
+        
         df = df.copy()
         
         # Apply timeframe resampling if needed
@@ -319,6 +323,8 @@ class TechnicalIndicators:
         indicator = TechnicalIndicators()
         
         # Define vectorized operations for better performance
+        print(f"DEBUG: Starting vectorized operations")
+        vectorized_start = time.time()
         vectorized_operations = [
             # Price-based calculations
             {'type': 'arithmetic', 'target': 'price_change', 'source': ['close'], 'operation': 'pct_change'},
@@ -331,6 +337,8 @@ class TechnicalIndicators:
         
         # Apply vectorized operations for performance
         df = perf_optimizer.vectorize_operations(vectorized_operations, df)
+        vectorized_end = time.time()
+        print(f"DEBUG: Vectorized operations completed in {vectorized_end - vectorized_start:.2f}s")
         
         # Group by symbol to calculate indicators for each stock
         def calculate_indicators(group):
@@ -429,7 +437,11 @@ class TechnicalIndicators:
             return calculate_indicators(group)
         
         # Use regular groupby apply (cached_groupby_apply was removed from PerformanceOptimizer)
+        print(f"DEBUG: Starting groupby apply operation for {df['symbol'].nunique()} symbols")
+        groupby_start = time.time()
         result = df.groupby('symbol').apply(optimized_groupby_apply)
+        groupby_end = time.time()
+        print(f"DEBUG: Groupby apply completed in {groupby_end - groupby_start:.2f}s")
         
         # Ensure the result is a DataFrame
         if isinstance(result, pd.Series):
@@ -438,7 +450,14 @@ class TechnicalIndicators:
             result = result.reset_index(drop=True)
         
         # Apply final memory optimization
+        print(f"DEBUG: Starting final memory optimization")
+        final_mem_start = time.time()
         result = perf_optimizer.optimize_memory_usage(result)
+        final_mem_end = time.time()
+        print(f"DEBUG: Final memory optimization completed in {final_mem_end - final_mem_start:.2f}s")
+        
+        total_end = time.time()
+        print(f"DEBUG: Total indicators calculation completed in {total_end - start_time:.2f}s, final shape: {result.shape}")
         
         return result
 

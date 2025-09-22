@@ -292,11 +292,32 @@ const BacktestControls = ({ filteredResults, ohlcvData, onBacktestComplete, apiB
 
         responseData = await response.json();
         console.log('Optimization response:', responseData);
-        setResults(responseData);
+        
+        // Transform the response to match the expected format for BacktestResults
+        const transformedResults = {
+          optimization_results: responseData,
+          best_params: responseData.best_params || {},
+          best_performance: responseData.best_performance || {},
+          all_results: responseData.all_results || [],
+          execution_time: responseData.execution_time,
+          signals_processed: responseData.signals_processed,
+          optimization_stats: responseData.optimization_stats || {},
+          trades: [], // Empty array for optimization results
+          performance_metrics: responseData.best_performance || {},
+          equity_curve: [], // Empty array for optimization results
+          summary: {
+            total_return: responseData.best_performance?.total_return || 0,
+            win_rate: responseData.best_performance?.win_rate || 0,
+            sharpe_ratio: responseData.best_performance?.sharpe_ratio || 0
+          },
+          initial_capital: backtestParams.initialCapital
+        };
+        
+        setResults(transformedResults);
 
         // Notify parent component of completion
         if (onBacktestComplete) {
-          onBacktestComplete(responseData);
+          onBacktestComplete(transformedResults);
         }
       } catch (fetchError) {
         console.error('Fetch error:', fetchError);

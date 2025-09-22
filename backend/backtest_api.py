@@ -25,6 +25,11 @@ def convert_numpy_types(obj):
     elif isinstance(obj, np.integer):
         return int(obj)
     elif isinstance(obj, np.floating):
+        # Handle infinity and NaN values
+        if np.isinf(obj):
+            return None  # Replace infinity with None
+        if np.isnan(obj):
+            return None  # Replace NaN with None
         return float(obj)
     elif isinstance(obj, np.bool_):
         return bool(obj)
@@ -623,9 +628,20 @@ async def optimize_backtest_parameters(
     """
     start_time = datetime.now()
     try:
+        # Debug: Log the request data
+        logger.info(f"DEBUG: Optimization request received with {len(request.signals_data)} signals")
+        logger.info(f"DEBUG: Request signals_data sample: {request.signals_data[0] if request.signals_data else 'None'}")
+        logger.info(f"DEBUG: Request signals_data type: {type(request.signals_data)}")
+        
+        # Convert Signal objects to dictionaries for the transformer
+        signals_dict = [signal.dict() for signal in request.signals_data]
+        logger.info(f"DEBUG: Converted signals to dict: {signals_dict[0] if signals_dict else 'None'}")
+        
         # Transform input data
         transformer = SignalTransformer()
-        signals_df = transformer.transform_scanner_signals(request.signals_data)
+        logger.info("DEBUG: About to call transform_scanner_signals")
+        signals_df = transformer.transform_scanner_signals(signals_dict)
+        logger.info(f"DEBUG: transform_scanner_signals completed, DataFrame shape: {signals_df.shape}")
         ohlcv_df = transformer.transform_ohlcv_data(request.ohlcv_data)
         vectorized_data = transformer.prepare_vectorized_data(ohlcv_df)
 
@@ -672,12 +688,12 @@ async def optimize_backtest_parameters(
         execution_time = (datetime.now() - start_time).total_seconds()
 
         response_data = {
-            'best_params': result_bundle.get('best_params', {}),
-            'best_performance': result_bundle.get('best_performance', {}),
-            'all_results': result_bundle.get('all_results', []),
-            'execution_time': execution_time,
-            'signals_processed': len(signals_df),
-            'optimization_stats': result_bundle.get('optimization_stats', {}),
+            'best_params': convert_numpy_types(result_bundle.get('best_params', {})),
+            'best_performance': convert_numpy_types(result_bundle.get('best_performance', {})),
+            'all_results': convert_numpy_types(result_bundle.get('all_results', [])),
+            'execution_time': float(execution_time),
+            'signals_processed': int(len(signals_df)),
+            'optimization_stats': convert_numpy_types(result_bundle.get('optimization_stats', {})),
             'risk_warnings': risk_warnings or []
         }
 

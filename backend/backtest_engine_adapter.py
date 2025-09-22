@@ -196,10 +196,41 @@ class BacktestEngineAdapter:
             
             # Run backtest
             self.logger.info("Executing backtest with BackTestEngine")
+            
+            # DEBUG: Log the backtest parameters for validation
+            self.logger.info(f"Backtest parameters - HP: {holding_period}, SL: {stop_loss}, TP: {take_profit}")
+            self.logger.info(f"Signal type: {signal_type}, Initial capital: {initial_capital}")
+            self.logger.info(f"Signals count: {len(signals_df)}")
+            
             # Use the actual functions from BackTestEngine module
             # Use the mock implementation for now
             try:
                 results = self.mock_engine.run_single_parameter_combo(backtest_params)
+                
+                # DEBUG: Validate results structure and identify serialization issues
+                self.logger.info(f"Results keys: {list(results.keys())}")
+                self.logger.info(f"Trades count: {len(results.get('trades', []))}")
+                self.logger.info(f"Performance metrics keys: {list(results.get('performance_metrics', {}).keys())}")
+                
+                # Check for potential serialization issues
+                trades = results.get('trades', [])
+                if trades:
+                    self.logger.warning(f"Sample trade data: {trades[0] if trades else 'No trades'}")
+                    # Check for datetime objects
+                    for i, trade in enumerate(trades[:3]):  # Check first 3 trades
+                        for key, value in trade.items():
+                            if hasattr(value, '__class__') and 'datetime' in str(value.__class__).lower():
+                                self.logger.warning(f"Found datetime object in trade {i}, key '{key}': {type(value)}")
+                
+                # Check performance metrics for infinity/NaN values
+                perf_metrics = results.get('performance_metrics', {})
+                for key, value in perf_metrics.items():
+                    if isinstance(value, (int, float)):
+                        if np.isinf(value) or np.isnan(value):
+                            self.logger.error(f"Found non-serializable value in performance metric '{key}': {value} (type: {type(value)})")
+                        elif abs(value) > 1e10:  # Very large numbers
+                            self.logger.warning(f"Very large value in performance metric '{key}': {value}")
+                
             except Exception as e:
                 self.logger.warning(f"Mock backtest execution failed: {e}, using fallback")
                 # Fallback to basic mock implementation
@@ -212,16 +243,74 @@ class BacktestEngineAdapter:
             self._update_performance_stats(execution_time, True)
             
             # Transform results for API response
-            response_data = {
-                'trades': results.get('trades', []),
-                'performance_metrics': results.get('performance_metrics', {}),
-                'equity_curve': results.get('equity_curve', pd.DataFrame()).to_dict('records') 
-                    if isinstance(results.get('equity_curve'), pd.DataFrame) else [],
-                'summary': results.get('summary', {}),
-                'execution_time': execution_time,
-                'signals_processed': len(signals_df),
-                'memory_optimization_applied': True
-            }
+            try:
+                # DEBUG: Test JSON serialization step by step
+                self.logger.info("Starting JSON serialization transformation...")
+                
+                # Handle trades - ensure datetime objects are converted to strings
+                trades = results.get('trades', [])
+                serialized_trades = []
+                for trade in trades:
+                    serialized_trade = {}
+                    for key, value in trade.items():
+                        if hasattr(value, '__class__') and 'datetime' in str(value.__class__).lower():
+                            # Convert datetime to ISO format string
+                            serialized_trade[key] = value.isoformat() if value else None
+                        elif isinstance(value, (int, float)) and (np.isinf(value) or np.isnan(value)):
+                            # Handle infinity and NaN values
+                            serialized_trade[key] = None
+                        else:
+                            serialized_trade[key] = value
+                    serialized_trades.append(serialized_trade)
+                
+                # Handle performance metrics - clean up infinity/NaN values
+                perf_metrics = results.get('performance_metrics', {})
+                cleaned_metrics = {}
+                for key, value in perf_metrics.items():
+                    if isinstance(value, (int, float)):
+                        if np.isinf(value) or np.isnan(value):
+                            self.logger.warning(f"Cleaning non-serializable metric '{key}': {value}")
+                            cleaned_metrics[key] = None  # or some reasonable default
+                        else:
+                            cleaned_metrics[key] = value
+                    else:
+                        cleaned_metrics[key] = value
+                
+                # Handle equity curve
+                equity_curve = results.get('equity_curve', pd.DataFrame())
+                if isinstance(equity_curve, pd.DataFrame):
+                    serialized_equity_curve = equity_curve.to_dict('records')
+                else:
+                    serialized_equity_curve = []
+                
+                response_data = {
+                    'trades': serialized_trades,
+                    'performance_metrics': cleaned_metrics,
+                    'equity_curve': serialized_equity_curve,
+                    'summary': results.get('summary', {}),
+                    'execution_time': execution_time,
+                    'signals_processed': len(signals_df),
+                    'memory_optimization_applied': True
+                }
+                
+                # DEBUG: Test if the response can be serialized
+                import json
+                json.dumps(response_data)  # This will fail if there are still issues
+                self.logger.info("JSON serialization successful")
+                
+            except Exception as serialize_error:
+                self.logger.error(f"JSON serialization failed: {serialize_error}")
+                
+                # Create a safe fallback response
+                response_data = {
+                    'trades': [],
+                    'performance_metrics': {},
+                    'equity_curve': [],
+                    'summary': {'error': 'JSON serialization failed', 'details': str(serialize_error)},
+                    'execution_time': execution_time,
+                    'signals_processed': len(signals_df),
+                    'memory_optimization_applied': True
+                }
             
             self.logger.info(f"Backtest completed successfully: {execution_time:.2f}s, "
                            f"{len(signals_df)} signals processed")

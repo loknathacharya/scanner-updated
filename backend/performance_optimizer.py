@@ -145,14 +145,23 @@ class PerformanceOptimizer:
         Returns:
             pd.DataFrame: Memory-optimized DataFrame
         """
+        import time
         start_time = time.time()
+        print(f"DEBUG: Starting memory optimization for {len(data)} rows")
+        
         memory_before = self._get_memory_usage()
         original_memory = data.memory_usage(deep=True).sum() / 1024 / 1024
+        print(f"DEBUG: Original memory usage: {original_memory:.2f}MB")
         
         optimized_df = data.copy()
         
         # Optimize numeric columns
-        for col in optimized_df.select_dtypes(include=[np.number]).columns:
+        print(f"DEBUG: Starting numeric column optimization")
+        numeric_start = time.time()
+        numeric_cols = optimized_df.select_dtypes(include=[np.number]).columns
+        print(f"DEBUG: Found {len(numeric_cols)} numeric columns")
+        
+        for col in numeric_cols:
             col_data = optimized_df[col]
             
             if pd.api.types.is_integer_dtype(col_data):
@@ -163,8 +172,16 @@ class PerformanceOptimizer:
                 # Downcast floats
                 optimized_df[col] = pd.to_numeric(col_data, downcast='float')
         
+        numeric_end = time.time()
+        print(f"DEBUG: Numeric column optimization completed in {numeric_end - numeric_start:.2f}s")
+        
         # Optimize object columns (strings)
-        for col in optimized_df.select_dtypes(include=['object']).columns:
+        print(f"DEBUG: Starting object column optimization")
+        object_start = time.time()
+        object_cols = optimized_df.select_dtypes(include=['object']).columns
+        print(f"DEBUG: Found {len(object_cols)} object columns")
+        
+        for col in object_cols:
             if col != 'date':  # Don't convert date columns
                 num_unique = optimized_df[col].nunique()
                 num_total = len(optimized_df[col])
@@ -173,12 +190,26 @@ class PerformanceOptimizer:
                 if num_unique / num_total < 0.5:
                     optimized_df[col] = optimized_df[col].astype('category')
         
+        object_end = time.time()
+        print(f"DEBUG: Object column optimization completed in {object_end - object_start:.2f}s")
+        
         # Optimize datetime columns
-        for col in optimized_df.select_dtypes(include=['datetime64']).columns:
+        print(f"DEBUG: Starting datetime column optimization")
+        datetime_start = time.time()
+        datetime_cols = optimized_df.select_dtypes(include=['datetime64']).columns
+        print(f"DEBUG: Found {len(datetime_cols)} datetime columns")
+        
+        for col in datetime_cols:
             optimized_df[col] = pd.to_datetime(optimized_df[col])
+        
+        datetime_end = time.time()
+        print(f"DEBUG: Datetime column optimization completed in {datetime_end - datetime_start:.2f}s")
         
         final_memory = optimized_df.memory_usage(deep=True).sum() / 1024 / 1024
         memory_saved = original_memory - final_memory
+        
+        print(f"DEBUG: Final memory usage: {final_memory:.2f}MB")
+        print(f"DEBUG: Memory saved: {memory_saved:.2f}MB ({memory_saved/original_memory*100:.1f}%)")
         
         # Log performance
         self._log_performance(
@@ -190,6 +221,9 @@ class PerformanceOptimizer:
         
         logger.info(f"Memory optimization: {original_memory:.2f}MB -> {final_memory:.2f}MB "
                    f"(saved {memory_saved:.2f}MB, {memory_saved/original_memory*100:.1f}%)")
+        
+        total_end = time.time()
+        print(f"DEBUG: Total memory optimization completed in {total_end - start_time:.2f}s")
         
         return optimized_df
     

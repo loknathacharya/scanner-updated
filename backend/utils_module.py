@@ -28,54 +28,108 @@ class DataProcessor:
     
     def load_file(self, uploaded_file, filename: str = "") -> pd.DataFrame:
         """Load file based on its extension"""
+        import time
+        start_time = time.time()
+        print(f"DEBUG: Starting file loading")
+        
         # Handle both Streamlit and FastAPI file upload objects
         if hasattr(uploaded_file, 'name'):
             # Streamlit file
             file_extension = uploaded_file.name.split('.')[-1].lower()
+            print(f"DEBUG: Detected file extension from name: {file_extension}")
         elif filename:
             # FastAPI file with explicit filename
             file_extension = filename.split('.')[-1].lower()
+            print(f"DEBUG: Detected file extension from filename: {file_extension}")
         else:
             # FastAPI file without filename, try to get from content-type or default to csv
             file_extension = 'csv'  # Default assumption
+            print(f"DEBUG: Using default file extension: {file_extension}")
         
         try:
             # For FastAPI, we need to read the file content
             if not hasattr(uploaded_file, 'name'):
                 # Reset file pointer to beginning
+                print(f"DEBUG: Resetting file pointer for FastAPI upload")
                 uploaded_file.file.seek(0)
                 file_content = uploaded_file.file
             else:
                 file_content = uploaded_file
             
+            print(f"DEBUG: Starting file reading for extension: {file_extension}")
+            read_start = time.time()
+            
             if file_extension == 'csv':
                 # Try different encodings
+                print(f"DEBUG: Trying CSV with utf-8 encoding")
                 try:
                     df = pd.read_csv(file_content, encoding='utf-8')
+                    print(f"DEBUG: CSV read successfully with utf-8")
                 except UnicodeDecodeError:
+                    print(f"DEBUG: UnicodeDecodeError with utf-8, trying latin-1")
                     if hasattr(file_content, 'seek'):
                         file_content.seek(0)
                     df = pd.read_csv(file_content, encoding='latin-1')
+                    print(f"DEBUG: CSV read successfully with latin-1")
             
             elif file_extension in ['xlsx', 'xls']:
-                df = pd.read_excel(file_content, engine='openpyxl' if file_extension == 'xlsx' else 'xlrd')
+                print(f"DEBUG: Reading Excel file with engine: {'openpyxl' if file_extension == 'xlsx' else 'xlrd'}")
+                try:
+                    # Try openpyxl first for xlsx files
+                    if file_extension == 'xlsx':
+                        print(f"DEBUG: Trying openpyxl engine")
+                        df = pd.read_excel(file_content, engine='openpyxl')
+                        print(f"DEBUG: Excel file read successfully with openpyxl")
+                    else:
+                        print(f"DEBUG: Using xlrd engine for .xls files")
+                        df = pd.read_excel(file_content, engine='xlrd')
+                        print(f"DEBUG: Excel file read successfully with xlrd")
+                except Exception as e:
+                    print(f"DEBUG: Primary Excel engine failed, trying alternatives: {str(e)}")
+                    # Try alternative engines
+                    try:
+                        if file_extension == 'xlsx':
+                            print(f"DEBUG: Trying xlrd engine as fallback")
+                            df = pd.read_excel(file_content, engine='xlrd')
+                            print(f"DEBUG: Excel file read successfully with xlrd fallback")
+                        else:
+                            print(f"DEBUG: Trying openpyxl engine as fallback")
+                            df = pd.read_excel(file_content, engine='openpyxl')
+                            print(f"DEBUG: Excel file read successfully with openpyxl fallback")
+                    except Exception as fallback_e:
+                        print(f"DEBUG: All Excel engines failed: {str(fallback_e)}")
+                        raise fallback_e
             
             elif file_extension == 'parquet':
+                print(f"DEBUG: Reading Parquet file")
                 df = pd.read_parquet(file_content)
+                print(f"DEBUG: Parquet file read successfully")
             
             else:
                 raise ValueError(f"Unsupported file format: {file_extension}")
             
+            read_end = time.time()
+            print(f"DEBUG: File reading completed in {read_end - read_start:.2f}s, shape: {df.shape}")
+            
             # Basic validation
+            print(f"DEBUG: Starting file validation")
+            validate_start = time.time()
             if df.empty:
                 raise ValueError("File is empty")
             
             if len(df.columns) < 5:
                 raise ValueError("File must have at least 5 columns (Date, Symbol, OHLC, Volume)")
             
+            validate_end = time.time()
+            print(f"DEBUG: File validation completed in {validate_end - validate_start:.2f}s")
+            
+            total_end = time.time()
+            print(f"DEBUG: Total file loading completed in {total_end - start_time:.2f}s")
+            
             return df
         
         except Exception as e:
+            print(f"DEBUG: File loading failed with error: {str(e)}")
             # For FastAPI, we don't have st.error
             if 'st' in globals():
                 st.error(f"Error loading file: {str(e)}")
@@ -185,8 +239,12 @@ class DataProcessor:
         except Exception as e:
             return False, f"Validation error: {str(e)}"
     
-    def process_data(self, df: pd.DataFrame, date_col: str, symbol_col: str, detected_cols: Dict[str, Optional[str]]) -> pd.DataFrame:
+    def process_data(self, df: pd.DataFrame, date_col: str, symbol_col: str, detected_cols: Dict[str, Optional[str]], calculate_indicators: bool = True) -> pd.DataFrame:
         """Process and clean the data"""
+        import time
+        start_time = time.time()
+        print(f"DEBUG: Starting data processing for {len(df)} rows, calculate_indicators: {calculate_indicators}")
+        
         processed_df = df.copy()
         
         # Rename columns to standard names
@@ -206,59 +264,125 @@ class DataProcessor:
             if original_name and original_name in processed_df.columns:
                 standard_df[standard_name] = processed_df[original_name]
         
+        print(f"DEBUG: Column mapping completed, shape: {standard_df.shape}")
+        
         # Process date column
+        print(f"DEBUG: Starting date column processing")
+        date_start = time.time()
         standard_df['date'] = self._process_date_column(standard_df['date'])
+        date_end = time.time()
+        print(f"DEBUG: Date column processing completed in {date_end - date_start:.2f}s")
         
         # Convert numeric columns
+        print(f"DEBUG: Starting numeric conversion")
+        numeric_start = time.time()
         numeric_cols = ['open', 'high', 'low', 'close', 'volume']
         for col in numeric_cols:
             if col in standard_df.columns:
                 standard_df[col] = pd.to_numeric(standard_df[col], errors='coerce')
+        numeric_end = time.time()
+        print(f"DEBUG: Numeric conversion completed in {numeric_end - numeric_start:.2f}s")
         
         # Remove rows with missing critical data
+        print(f"DEBUG: Starting data cleaning")
+        clean_start = time.time()
+        original_rows = len(standard_df)
         standard_df = standard_df.dropna(subset=['date', 'symbol', 'close'])
+        cleaned_rows = len(standard_df)
+        clean_end = time.time()
+        print(f"DEBUG: Data cleaning completed in {clean_end - clean_start:.2f}s, removed {original_rows - cleaned_rows} rows")
         
         # Sort by symbol and date
+        print(f"DEBUG: Starting data sorting")
+        sort_start = time.time()
         standard_df = standard_df.sort_values(['symbol', 'date']).reset_index(drop=True)
+        sort_end = time.time()
+        print(f"DEBUG: Data sorting completed in {sort_end - sort_start:.2f}s")
         
-        # Add technical indicators with performance optimization
-        # Check if we're in a Streamlit environment
-        if 'streamlit' in sys.modules:
-            with st.spinner("Calculating technical indicators..."):
-                # Create TechnicalIndicators instance and call the updated method
-                indicator_calculator = TechnicalIndicators()
+        # Add technical indicators only if requested (this is the bottleneck)
+        if calculate_indicators:
+            print(f"DEBUG: Starting technical indicators calculation")
+            indicators_start = time.time()
+            
+            try:
+                # Check if we're in a Streamlit environment
+                if 'streamlit' in sys.modules:
+                    with st.spinner("Calculating technical indicators..."):
+                        # Create TechnicalIndicators instance and call the updated method
+                        indicator_calculator = TechnicalIndicators()
+                        
+                        # Initialize performance optimizer
+                        perf_optimizer = PerformanceOptimizer()
+                        
+                        # Optimize memory usage before calculating indicators
+                        print(f"DEBUG: Starting memory optimization before indicators")
+                        mem_opt_start = time.time()
+                        optimized_df = perf_optimizer.optimize_memory_usage(standard_df)
+                        mem_opt_end = time.time()
+                        print(f"DEBUG: Memory optimization completed in {mem_opt_end - mem_opt_start:.2f}s")
+                        
+                        # Calculate indicators
+                        print(f"DEBUG: Starting indicators calculation for {len(optimized_df)} rows, {optimized_df['symbol'].nunique()} symbols")
+                        calc_start = time.time()
+                        standard_df = indicator_calculator.add_all_indicators(optimized_df)
+                        calc_end = time.time()
+                        print(f"DEBUG: Indicators calculation completed in {calc_end - calc_start:.2f}s")
+                        
+                        # Apply final memory optimization
+                        print(f"DEBUG: Starting final memory optimization")
+                        final_mem_start = time.time()
+                        standard_df = perf_optimizer.optimize_memory_usage(standard_df)
+                        final_mem_end = time.time()
+                        print(f"DEBUG: Final memory optimization completed in {final_mem_end - final_mem_start:.2f}s")
+                else:
+                    # Create TechnicalIndicators instance and call the updated method
+                    indicator_calculator = TechnicalIndicators()
+                    
+                    # Initialize performance optimizer
+                    perf_optimizer = PerformanceOptimizer()
+                    
+                    # Optimize memory usage before calculating indicators
+                    print(f"DEBUG: Starting memory optimization before indicators")
+                    mem_opt_start = time.time()
+                    optimized_df = perf_optimizer.optimize_memory_usage(standard_df)
+                    mem_opt_end = time.time()
+                    print(f"DEBUG: Memory optimization completed in {mem_opt_end - mem_opt_start:.2f}s")
+                    
+                    # Calculate indicators
+                    print(f"DEBUG: Starting indicators calculation for {len(optimized_df)} rows, {optimized_df['symbol'].nunique()} symbols")
+                    calc_start = time.time()
+                    standard_df = indicator_calculator.add_all_indicators(optimized_df)
+                    calc_end = time.time()
+                    print(f"DEBUG: Indicators calculation completed in {calc_end - calc_start:.2f}s")
+                    
+                    # Apply final memory optimization
+                    print(f"DEBUG: Starting final memory optimization")
+                    final_mem_start = time.time()
+                    standard_df = perf_optimizer.optimize_memory_usage(standard_df)
+                    final_mem_end = time.time()
+                    print(f"DEBUG: Final memory optimization completed in {final_mem_end - final_mem_start:.2f}s")
                 
-                # Initialize performance optimizer
-                perf_optimizer = PerformanceOptimizer()
+                indicators_end = time.time()
+                print(f"DEBUG: Technical indicators calculation completed in {indicators_end - indicators_start:.2f}s")
                 
-                # Optimize memory usage before calculating indicators
-                optimized_df = perf_optimizer.optimize_memory_usage(standard_df)
-                
-                # Calculate indicators
-                standard_df = indicator_calculator.add_all_indicators(optimized_df)
-                
-                # Apply final memory optimization
-                standard_df = perf_optimizer.optimize_memory_usage(standard_df)
+            except Exception as e:
+                print(f"DEBUG: Technical indicators calculation failed: {str(e)}")
+                print(f"DEBUG: Continuing without indicators")
+                # Continue without indicators if calculation fails
         else:
-            # Create TechnicalIndicators instance and call the updated method
-            indicator_calculator = TechnicalIndicators()
-            
-            # Initialize performance optimizer
-            perf_optimizer = PerformanceOptimizer()
-            
-            # Optimize memory usage before calculating indicators
-            optimized_df = perf_optimizer.optimize_memory_usage(standard_df)
-            
-            # Calculate indicators
-            standard_df = indicator_calculator.add_all_indicators(optimized_df)
-            
-            # Apply final memory optimization
-            standard_df = perf_optimizer.optimize_memory_usage(standard_df)
+            print(f"DEBUG: Skipping technical indicators calculation (set to False)")
+        
+        total_end = time.time()
+        print(f"DEBUG: Total data processing completed in {total_end - start_time:.2f}s, final shape: {standard_df.shape}")
         
         return standard_df
     
     def _process_date_column(self, date_series: pd.Series) -> pd.Series:
         """Process and standardize date column"""
+        import time
+        start_time = time.time()
+        print(f"DEBUG _process_date_column: Starting date processing for {len(date_series)} rows")
+        
         # DEBUG: Log input date series info
         print(f"DEBUG _process_date_column: Input dtype: {date_series.dtype}")
         print(f"DEBUG _process_date_column: Sample values: {date_series.head().tolist()}")
@@ -266,33 +390,49 @@ class DataProcessor:
             print(f"DEBUG _process_date_column: Input timezone: {date_series.dt.tz}")
         
         if pd.api.types.is_datetime64_any_dtype(date_series):
+            print(f"DEBUG _process_date_column: Already datetime, converting")
+            convert_start = time.time()
             result = pd.to_datetime(date_series)
-            print(f"DEBUG _process_date_column: Already datetime, converted dtype: {result.dtype}")
+            convert_end = time.time()
+            print(f"DEBUG _process_date_column: Already datetime, converted dtype: {result.dtype}, took {convert_end - convert_start:.2f}s")
             if hasattr(result, 'dt') and hasattr(result.dt, 'tz'):
                 print(f"DEBUG _process_date_column: Result timezone: {result.dt.tz}")
             return result
         
         # Try different date formats
-        for date_format in self.date_formats:
+        print(f"DEBUG _process_date_column: Trying {len(self.date_formats)} date formats")
+        for i, date_format in enumerate(self.date_formats):
+            format_start = time.time()
             try:
                 result = pd.to_datetime(date_series, format=date_format)
-                print(f"DEBUG _process_date_column: Successfully parsed with format {date_format}, dtype: {result.dtype}")
+                format_end = time.time()
+                print(f"DEBUG _process_date_column: Successfully parsed with format {date_format} (attempt {i+1}), dtype: {result.dtype}, took {format_end - format_start:.2f}s")
                 if hasattr(result, 'dt') and hasattr(result.dt, 'tz'):
                     print(f"DEBUG _process_date_column: Result timezone: {result.dt.tz}")
                 return result
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
+                format_end = time.time()
+                print(f"DEBUG _process_date_column: Format {date_format} failed (attempt {i+1}), took {format_end - format_start:.2f}s, error: {str(e)}")
                 continue
         
         # If all formats fail, use pandas infer
+        print(f"DEBUG _process_date_column: All formats failed, trying pandas infer")
+        infer_start = time.time()
         try:
             result = pd.to_datetime(date_series)
-            print(f"DEBUG _process_date_column: Pandas infer successful, dtype: {result.dtype}")
+            infer_end = time.time()
+            print(f"DEBUG _process_date_column: Pandas infer successful, dtype: {result.dtype}, took {infer_end - infer_start:.2f}s")
             if hasattr(result, 'dt') and hasattr(result.dt, 'tz'):
                 print(f"DEBUG _process_date_column: Result timezone: {result.dt.tz}")
             return result
-        except Exception:
+        except Exception as e:
+            infer_end = time.time()
+            print(f"DEBUG _process_date_column: Pandas infer failed, took {infer_end - infer_start:.2f}s, error: {str(e)}")
             st.error("Could not parse date column. Please check date format.")
             raise ValueError("Invalid date format")
+        
+        total_end = time.time()
+        print(f"DEBUG _process_date_column: Total date processing completed in {total_end - start_time:.2f}s")
     
     def get_data_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Get summary statistics of the data"""

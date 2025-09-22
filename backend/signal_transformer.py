@@ -47,10 +47,19 @@ class SignalTransformer:
             # Convert list of dicts to DataFrame
             df = pd.DataFrame(scanner_results)
             
+            # Debug: Log input data
+            logger.info(f"DEBUG: Input scanner_results type: {type(scanner_results)}")
+            logger.info(f"DEBUG: Input scanner_results length: {len(scanner_results)}")
+            logger.info(f"DEBUG: Input scanner_results sample: {scanner_results[0] if scanner_results else 'None'}")
+            logger.info(f"DEBUG: DataFrame columns: {list(df.columns)}")
+            logger.info(f"DEBUG: DataFrame shape: {df.shape}")
+            
             # Validate required columns
             required_columns = ['symbol', 'date']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
+                logger.error(f"DEBUG: Missing columns detected: {missing_columns}")
+                logger.error(f"DEBUG: Available columns: {list(df.columns)}")
                 raise ValueError(f"Missing required columns: {missing_columns}")
             
             # Log transformation details

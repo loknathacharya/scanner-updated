@@ -216,13 +216,12 @@ def calculate_position_size_vectorized(sizing_method_code: int, entry_price: flo
     max_shares = portfolio_value / entry_price
     shares = min(shares, max_shares)
     
-    # Apply leverage constraint if not allowed
-    if not allow_leverage:
-        available_capital = portfolio_value - open_positions_value
-        if available_capital <= 0:
-            return 0.0
-        max_shares_no_leverage = available_capital / entry_price
-        shares = min(shares, max_shares_no_leverage)
+    # Apply leverage constraint only when leverage is explicitly allowed
+    # When allow_leverage=False, we should not restrict position sizes beyond portfolio limits
+    if allow_leverage:
+        # When leverage is allowed, we can use the full portfolio value
+        max_shares_with_leverage = portfolio_value / entry_price
+        shares = min(shares, max_shares_with_leverage)
     
     # Return the whole number of shares, ensuring it's not negative.
     # Returning 0 shares is a valid outcome if capital is insufficient for even one share.
@@ -403,8 +402,12 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
     avg_win_dollar = winners['P&L ($)'].mean() if not winners.empty else 0
     avg_loss_dollar = losers['P&L ($)'].mean() if not losers.empty else 0
     
-    # Risk-adjusted metrics
-    profit_factor = abs(winners['P&L ($)'].sum() / losers['P&L ($)'].sum()) if not losers.empty and losers['P&L ($)'].sum() != 0 else np.inf
+    # Risk-adjusted metrics - handle edge cases to prevent infinity values
+    if not losers.empty and losers['P&L ($)'].sum() != 0:
+        profit_factor = abs(winners['P&L ($)'].sum() / losers['P&L ($)'].sum())
+    else:
+        # If no losing trades or sum is zero, set profit factor to a large finite number
+        profit_factor = winners['P&L ($)'].sum() if not winners.empty else 0
     
     # Portfolio value progression - use final portfolio value for accurate return calculation
     final_portfolio_value = portfolio_value if trades else initial_capital
@@ -942,8 +945,12 @@ def calculate_performance_metrics(trade_log_df, initial_capital=100000, risk_fre
     avg_win_dollar = winners['P&L ($)'].mean() if not winners.empty else 0
     avg_loss_dollar = losers['P&L ($)'].mean() if not losers.empty else 0
     
-    # Risk-adjusted metrics
-    profit_factor = abs(winners['P&L ($)'].sum() / losers['P&L ($)'].sum()) if not losers.empty and losers['P&L ($)'].sum() != 0 else np.inf
+    # Risk-adjusted metrics - handle edge cases to prevent infinity values
+    if not losers.empty and losers['P&L ($)'].sum() != 0:
+        profit_factor = abs(winners['P&L ($)'].sum() / losers['P&L ($)'].sum())
+    else:
+        # If no losing trades or sum is zero, set profit factor to a large finite number
+        profit_factor = winners['P&L ($)'].sum() if not winners.empty else 0
     
     # DEBUG: Log return calculation methods
     print(f"DEBUG calculate_performance_metrics: Total P&L = ${total_pl_dollar:.2f}")

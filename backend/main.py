@@ -52,23 +52,45 @@ async def upload_data(file: UploadFile = File(...)):
     """
     Uploads a data file (CSV, XLSX, Parquet), processes it, and stores it in memory.
     """
+    import time
+    start_time = time.time()
+    print(f"DEBUG: Starting file upload process for {file.filename}")
+    
     global processed_data
     try:
         # Use the data_processor to load the file
+        print(f"DEBUG: Starting file loading")
+        load_start = time.time()
         df = data_processor.load_file(file, file.filename or "")
+        load_end = time.time()
+        print(f"DEBUG: File loading completed in {load_end - load_start:.2f}s, shape: {df.shape}")
         
         # Basic data processing (can be expanded later)
+        print(f"DEBUG: Starting column detection")
+        detect_start = time.time()
         detected_cols = data_processor.detect_columns(df)
+        detect_end = time.time()
+        print(f"DEBUG: Column detection completed in {detect_end - detect_start:.2f}s")
+        print(f"DEBUG: Detected columns: {detected_cols}")
+        
         date_col = detected_cols.get('date')
         symbol_col = detected_cols.get('symbol')
 
         if not date_col or not symbol_col:
+            print(f"DEBUG: Missing required columns - date: {date_col}, symbol: {symbol_col}")
             raise HTTPException(
                 status_code=400,
                 detail="Could not automatically detect 'date' and 'symbol' columns. Please ensure they are present in the file."
             )
 
-        processed_data = data_processor.process_data(df, date_col, symbol_col, detected_cols)
+        print(f"DEBUG: Starting data processing")
+        process_start = time.time()
+        processed_data = data_processor.process_data(df, date_col, symbol_col, detected_cols, calculate_indicators=True)
+        process_end = time.time()
+        print(f"DEBUG: Data processing completed in {process_end - process_start:.2f}s")
+        
+        total_end = time.time()
+        print(f"DEBUG: Total upload process completed in {total_end - start_time:.2f}s")
         
         return JSONResponse(
             status_code=200,
@@ -79,6 +101,7 @@ async def upload_data(file: UploadFile = File(...)):
             }
         )
     except Exception as e:
+        print(f"DEBUG: Upload process failed with error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occurred: {str(e)}\n{traceback.format_exc()}"
