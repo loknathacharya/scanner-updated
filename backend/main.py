@@ -283,7 +283,10 @@ async def delete_saved_filter(filter_name: str):
         )
 
 from backtest_api import router as backtest_router
+from chart_api import router as chart_router
+
 app.include_router(backtest_router, prefix="/api/backtest", tags=["backtest"])
+app.include_router(chart_router, prefix="", tags=["charts"])
 
 # Phase 2 support: expose processed OHLCV data for frontend to call
 from fastapi import Query

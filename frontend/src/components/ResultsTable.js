@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -23,7 +23,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Select
+  Select,
+  CircularProgress
 } from '@mui/material';
 import {
   Download as DownloadIcon,
@@ -31,6 +32,8 @@ import {
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon
 } from '@mui/icons-material';
+import TradingViewChart from './TradingViewChart';
+import { transformOHLCVData } from '../utils/chartDataTransformer';
 
 const ResultsTable = ({ results, processedData, apiBase }) => {
   const [page, setPage] = useState(0);
@@ -40,6 +43,9 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
   const [selectedColumns, setSelectedColumns] = useState(['date', 'symbol', 'close', 'volume']);
   const [chartDialog, setChartDialog] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState('');
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [chartError, setChartError] = useState(null);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -122,12 +128,28 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
 
   const handleChartClick = async (symbol) => {
     try {
-      // Get chart data for the symbol
-      // const response = await axios.get(`${apiBase}/chart/${symbol}`);
+      setChartLoading(true);
+      setChartError(null);
       setSelectedSymbol(symbol);
+
+      // Fetch chart data from the API
+      const response = await fetch(`${apiBase}/charts/${symbol}/ohlcv?timeframe=1D&limit=1000`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const chartResponse = await response.json();
+
+      // Data is already in TradingView format from the API
+      const chartData = chartResponse.data || [];
+
+      setChartData(chartData);
       setChartDialog(true);
     } catch (error) {
       console.error('Chart error:', error);
+      setChartError(error.message);
+      setChartDialog(true);
+    } finally {
+      setChartLoading(false);
     }
   };
 
@@ -349,12 +371,30 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
           Chart for {selectedSymbol}
         </DialogTitle>
         <DialogContent>
-          <Typography>
-            Chart functionality will be implemented in the next phase.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            This would display an interactive OHLC chart with technical indicators.
-          </Typography>
+          <Box sx={{ height: '600px', width: '100%' }}>
+            {chartLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : chartError ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Typography color="error">Error loading chart: {chartError}</Typography>
+              </Box>
+            ) : chartData.length > 0 ? (
+              <TradingViewChart
+                data={chartData}
+                symbol={selectedSymbol}
+                chartType="candlestick"
+                timeframe="1D"
+                height={600}
+                theme="dark"
+              />
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Typography>No chart data available</Typography>
+              </Box>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setChartDialog(false)}>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradingView Chart Test</title>
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+        }
+        .chart-container {
+            width: 100%;
+            height: 600px;
+            margin: 20px 0;
+        }
+        button {
+            background: #2962FF;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #1e4fd8;
+        }
+        .data-display {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TradingView Chart Test</h1>
+    <div>
+        <button onclick="loadChartData()">Load Chart Data</button>
+        <button onclick="createChart()">Create Chart</button>
+        <button onclick="clearChart()">Clear Chart</button>
+    </div>
+
+    <div id="chartContainer" class="chart-container"></div>
+
+    <div id="dataDisplay" class="data-display">Click "Load Chart Data" to fetch data from API</div>
+
+    <script>
+        let chart = null;
+        let candlestickSeries = null;
+        let chartData = [];
+
+        async function loadChartData() {
+            try {
+                const response = await fetch('http://localhost:8000/api/charts/AAPL/ohlcv?timeframe=1D&limit=10');
+                const result = await response.json();
+
+                chartData = result.data;
+                document.getElementById('dataDisplay').innerHTML =
+                    `<pre>${JSON.stringify(chartData, null, 2)}</pre>`;
+
+                console.log('Loaded data:', chartData);
+                createChart();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('dataDisplay').innerHTML =
+                    `Error: ${error.message}`;
+            }
+        }
+
+        function createChart() {
+            if (!chartData.length) {
+                alert('No data loaded. Click "Load Chart Data" first.');
+                return;
+            }
+
+            // Clear existing chart
+            if (chart) {
+                chart.remove();
+            }
+
+            // Create new chart
+            chart = LightweightCharts.createChart(document.getElementById('chartContainer'), {
+                layout: {
+                    background: { type: 'solid', color: '#1a1a1a' },
+                    textColor: '#d1d4dc',
+                },
+                grid: {
+                    vertLines: { color: '#2a2e39' },
+                    horzLines: { color: '#2a2e39' },
+                },
+                crosshair: {
+                    mode: LightweightCharts.CrosshairMode.Normal,
+                },
+                rightPriceScale: {
+                    borderColor: '#485158',
+                    textColor: '#d1d4dc',
+                },
+                timeScale: {
+                    borderColor: '#485158',
+                    textColor: '#d1d4dc',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                width: document.getElementById('chartContainer').clientWidth,
+                height: 600,
+            });
+
+            // Create candlestick series
+            candlestickSeries = chart.addCandlestickSeries({
+                upColor: '#26a69a',
+                downColor: '#ef5350',
+                borderVisible: false,
+                wickUpColor: '#26a69a',
+                wickDownColor: '#ef5350',
+            });
+
+            // Set data
+            console.log('Setting chart data:', chartData.length, 'points');
+            candlestickSeries.setData(chartData);
+
+            console.log('Chart created successfully');
+        }
+
+        function clearChart() {
+            if (chart) {
+                chart.remove();
+                chart = null;
+                candlestickSeries = null;
+            }
+            document.getElementById('dataDisplay').innerHTML = 'Chart cleared';
+        }
+
+        // Auto-load data on page load
+        window.onload = function() {
+            console.log('Page loaded, ready to test chart');
+        };
+    </script>
+</body>
+</html>
