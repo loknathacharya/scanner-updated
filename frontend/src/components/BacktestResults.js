@@ -83,6 +83,46 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
   });
   const [exportMenuAnchor, setExportMenuAnchor] = useState(null);
   const [settingsDialog, setSettingsDialog] = useState(false);
+  const [optimizationOrder, setOptimizationOrder] = useState('desc');
+  const [optimizationOrderBy, setOptimizationOrderBy] = useState('holding_period');
+
+  // Sorting functions for optimization results
+  const handleOptimizationRequestSort = (property) => {
+    const isAsc = optimizationOrderBy === property && optimizationOrder === 'asc';
+    setOptimizationOrder(isAsc ? 'desc' : 'asc');
+    setOptimizationOrderBy(property);
+  };
+
+  const getOptimizationComparator = (order, orderBy) => {
+    return order === 'desc'
+      ? (a, b) => descendingOptimizationComparator(a, b, orderBy)
+      : (a, b) => -descendingOptimizationComparator(a, b, orderBy);
+  };
+
+  const descendingOptimizationComparator = (a, b, orderBy) => {
+    let aValue, bValue;
+    
+    if (orderBy.startsWith('params_')) {
+      const paramKey = orderBy.replace('params_', '');
+      aValue = a.params?.[paramKey];
+      bValue = b.params?.[paramKey];
+    } else {
+      aValue = a[orderBy];
+      bValue = b[orderBy];
+    }
+    
+    if (aValue == null) aValue = -Infinity;
+    if (bValue == null) bValue = -Infinity;
+    
+    if (bValue < aValue) return -1;
+    if (bValue > aValue) return 1;
+    return 0;
+  };
+
+  const getSortedOptimizationResults = () => {
+    const allResults = results.optimization_results?.all_results || results.all_results || [];
+    return allResults.slice().sort(getOptimizationComparator(optimizationOrder, optimizationOrderBy));
+  };
 
   // Extract data from results (moved below after results null-check)
   // const { trades, performance_metrics, equity_curve, summary, execution_time, signals_processed, optimization_results, initial_capital } = results;
@@ -331,35 +371,107 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                      Parameters
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('holding_period')}
+                    >
+                      Holding Period
+                      {optimizationOrderBy === 'holding_period' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('stop_loss')}
+                    >
+                      Stop Loss
+                      {optimizationOrderBy === 'stop_loss' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </th>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('take_profit')}
+                    >
+                      Take Profit
+                      {optimizationOrderBy === 'take_profit' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
+                    </th>
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('total_return')}
+                    >
                       Total Return
+                      {optimizationOrderBy === 'total_return' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('win_rate')}
+                    >
                       Win Rate
+                      {optimizationOrderBy === 'win_rate' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('sharpe_ratio')}
+                    >
                       Sharpe Ratio
+                      {optimizationOrderBy === 'sharpe_ratio' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('max_drawdown')}
+                    >
                       Max Drawdown
+                      {optimizationOrderBy === 'max_drawdown' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-300"
+                      onClick={() => handleOptimizationRequestSort('total_trades')}
+                    >
                       Total Trades
+                      {optimizationOrderBy === 'total_trades' && (
+                        <span className="ml-1">
+                          {optimizationOrder === 'asc' ? '↑' : '↓'}
+                        </span>
+                      )}
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900/50 divide-y divide-gray-200 dark:divide-gray-700">
-                  {(results.optimization_results?.all_results || results.all_results)?.slice(0, 20).map((result, index) => (
+                  {getSortedOptimizationResults().slice(0, 20).map((result, index) => (
                     <tr key={index} className={index === 0 ? 'bg-green-50 dark:bg-green-900/10' : ''}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
-                        <div className="flex flex-col">
-                          <span>HP: {result.params?.holding_period || 'N/A'}</span>
-                          <span>SL: {result.params?.stop_loss || 'N/A'}%</span>
-                          <span>TP: {result.params?.take_profit ? `${result.params.take_profit}%` : 'None'}</span>
-                        </div>
+                        {result.params?.holding_period || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {result.params?.stop_loss !== undefined ? `${result.params.stop_loss}%` : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {result.params?.take_profit !== undefined ? `${result.params.take_profit}%` : 'None'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {result.total_return ? `${result.total_return.toFixed(2)}%` : 'N/A'}
