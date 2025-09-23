@@ -66,6 +66,7 @@ import { format } from 'date-fns';
 import KeyMetrics from './KeyMetrics';
 import TradeLogTable from './TradeLogTable';
 import EquityCurveChart from './EquityCurveChart';
+import InvestedCapitalChart from './InvestedCapitalChart';
 
 const BacktestResults = ({ results, onExport, onFilterChange }) => {
   const [loading, setLoading] = useState(false);
@@ -187,6 +188,133 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
         </div>
       </div>
 
+      {/* KPI Metrics Section - Always Visible */}
+      <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6 mb-6">
+        <div className="flex items-center mb-4">
+          <AssessmentIcon className="w-5 h-5 text-primary mr-2" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Key Performance Indicators</h3>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Total Return */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-1">Total Return</div>
+            <div className={`text-xl font-bold ${performance_metrics?.total_return >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+              {performance_metrics?.total_return ? `${performance_metrics.total_return.toFixed(2)}%` : 'N/A'}
+            </div>
+            <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+              {performance_metrics?.total_pl ? `$${performance_metrics.total_pl.toLocaleString()}` : 'N/A'}
+            </div>
+          </div>
+
+          {/* Win Rate */}
+          <div className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-green-700 dark:text-green-300 uppercase tracking-wider mb-1">Win Rate</div>
+            <div className="text-xl font-bold text-green-900 dark:text-green-100">
+              {performance_metrics?.win_rate ? `${performance_metrics.win_rate.toFixed(1)}%` : 'N/A'}
+            </div>
+            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+              {performance_metrics?.total_trades || 'N/A'} trades
+            </div>
+          </div>
+
+          {/* Sharpe Ratio */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-purple-700 dark:text-purple-300 uppercase tracking-wider mb-1">Sharpe Ratio</div>
+            <div className="text-xl font-bold text-purple-900 dark:text-purple-100">
+              {performance_metrics?.sharpe_ratio ? performance_metrics.sharpe_ratio.toFixed(3) : 'N/A'}
+            </div>
+            <div className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+              Risk-adjusted return
+            </div>
+          </div>
+
+          {/* Max Drawdown */}
+          <div className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-red-700 dark:text-red-300 uppercase tracking-wider mb-1">Max Drawdown</div>
+            <div className="text-xl font-bold text-red-900 dark:text-red-100">
+              {performance_metrics?.max_drawdown ? `${performance_metrics.max_drawdown.toFixed(2)}%` : 'N/A'}
+            </div>
+            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+              Peak to trough decline
+            </div>
+          </div>
+
+          {/* Profit Factor */}
+          <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-yellow-700 dark:text-yellow-300 uppercase tracking-wider mb-1">Profit Factor</div>
+            <div className="text-xl font-bold text-yellow-900 dark:text-yellow-100">
+              {performance_metrics?.profit_factor ? performance_metrics.profit_factor.toFixed(2) : 'N/A'}
+            </div>
+            <div className="text-xs text-yellow-600 dark:text-yellow-400 mt-1">
+              Gross profit / gross loss
+            </div>
+          </div>
+
+          {/* Calmar Ratio */}
+          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/20 dark:to-indigo-800/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
+            <div className="text-xs font-medium text-indigo-700 dark:text-indigo-300 uppercase tracking-wider mb-1">Calmar Ratio</div>
+            <div className="text-xl font-bold text-indigo-900 dark:text-indigo-100">
+              {performance_metrics?.calmar_ratio || performance_metrics?.['Calmar Ratio'] ? (performance_metrics.calmar_ratio || performance_metrics['Calmar Ratio']).toFixed(3) : 'N/A'}
+            </div>
+            <div className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
+              Return / max drawdown
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Metrics Row */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Avg Win</div>
+            <div className="text-lg font-semibold text-green-600 dark:text-green-400">
+              {performance_metrics?.avg_win || performance_metrics?.['Average Win (%)'] ? `${(performance_metrics.avg_win || performance_metrics['Average Win (%)']).toFixed(2)}%` : 'N/A'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-500">
+              {performance_metrics?.avg_win_dollar || performance_metrics?.['Average Win ($)'] ? `$${(performance_metrics.avg_win_dollar || performance_metrics['Average Win ($)']).toLocaleString()}` : 'N/A'}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Avg Loss</div>
+            <div className="text-lg font-semibold text-red-600 dark:text-red-400">
+              {performance_metrics?.avg_loss || performance_metrics?.['Average Loss (%)'] ? `${(performance_metrics.avg_loss || performance_metrics['Average Loss (%)']).toFixed(2)}%` : 'N/A'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-500">
+              {performance_metrics?.avg_loss_dollar || performance_metrics?.['Average Loss ($)'] ? `$${(performance_metrics.avg_loss_dollar || performance_metrics['Average Loss ($)']).toLocaleString()}` : 'N/A'}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Avg Position</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {(() => {
+                // Try multiple possible field names for average position size
+                const avgPosSize = performance_metrics?.avg_position_size ||
+                                 performance_metrics?.['Avg Position Size ($)'] ||
+                                 performance_metrics?.['Average Position Size ($)'] ||
+                                 performance_metrics?.avg_position ||
+                                 performance_metrics?.['Average Position Size'];
+                return avgPosSize ? `$${Number(avgPosSize).toLocaleString()}` : 'N/A';
+              })()}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-500">
+              Portfolio allocation
+            </div>
+          </div>
+
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="text-xs font-medium text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-1">Signal Type</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {performance_metrics?.signal_type || performance_metrics?.['Signal Type'] || 'N/A'}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-500">
+              Strategy direction
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
         <div className="flex space-x-1 overflow-x-auto">
@@ -283,7 +411,7 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Portfolio Performance Over Time</h3>
             </div>
             {equity_curve && equity_curve.length > 0 ? (
-              <EquityCurveChart equityCurve={equity_curve} initialCapital={initial_capital} />
+              <EquityCurveChart equityCurve={equity_curve} trades={trades} initialCapital={initial_capital} />
             ) : (
               <div className="h-96 bg-gray-50 dark:bg-gray-800/30 rounded-lg p-4 flex items-center justify-center">
                 <div className="text-center text-gray-500 dark:text-gray-400">
@@ -298,20 +426,28 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Final Portfolio Value</div>
                 <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  ${equity_curve && equity_curve.length > 0 && equity_curve[equity_curve.length - 1] && equity_curve[equity_curve.length - 1].portfolio_value ?
-                    equity_curve[equity_curve.length - 1].portfolio_value.toLocaleString() : 'N/A'}
+                  ${(() => {
+                    if (!equity_curve || equity_curve.length === 0) return 'N/A';
+                    const lastPoint = equity_curve[equity_curve.length - 1];
+                    if (lastPoint && (lastPoint.portfolio_value || lastPoint['Portfolio Value'])) {
+                      return (lastPoint.portfolio_value || lastPoint['Portfolio Value']).toLocaleString();
+                    }
+                    return 'N/A';
+                  })()}
                 </div>
               </div>
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-green-700 dark:text-green-300">Total Return</div>
                 <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {performance_metrics && performance_metrics.total_return ? `${performance_metrics.total_return.toFixed(2)}%` : 'N/A'}
+                  {performance_metrics?.total_return || performance_metrics?.['Total Return (%)'] ?
+                    `${(performance_metrics.total_return || performance_metrics['Total Return (%)']).toFixed(2)}%` : 'N/A'}
                 </div>
               </div>
               <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Max Drawdown</div>
                 <div className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                  {performance_metrics && performance_metrics.max_drawdown ? `${performance_metrics.max_drawdown.toFixed(2)}%` : 'N/A'}
+                  {performance_metrics?.max_drawdown || performance_metrics?.['Max Drawdown (%)'] ?
+                    `${(performance_metrics.max_drawdown || performance_metrics['Max Drawdown (%)']).toFixed(2)}%` : 'N/A'}
                 </div>
               </div>
             </div>
@@ -329,13 +465,17 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
             </div>
             
             {/* Invested Value Chart */}
-            <div className="h-96 bg-gray-50 dark:bg-gray-800/30 rounded-lg p-4 flex items-center justify-center">
-              <div className="text-center text-gray-500 dark:text-gray-400">
-                <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
-                <p>Invested value timeline chart would be displayed here</p>
-                <p className="text-sm mt-1">Shows capital deployment over time</p>
+            {trades && trades.length > 0 ? (
+              <InvestedCapitalChart trades={trades} initialCapital={initial_capital} />
+            ) : (
+              <div className="h-96 bg-gray-50 dark:bg-gray-800/30 rounded-lg p-4 flex items-center justify-center">
+                <div className="text-center text-gray-500 dark:text-gray-400">
+                  <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
+                  <p>No trade data available for invested capital chart</p>
+                  <p className="text-sm mt-1">Trade data is required to calculate capital deployment</p>
+                </div>
               </div>
-            </div>
+            )}
             
             {/* Invested Value Statistics */}
             <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
