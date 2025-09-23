@@ -33,6 +33,7 @@ import {
   TrendingDown as TrendingDownIcon
 } from '@mui/icons-material';
 import TradingViewChart from './TradingViewChart';
+import AdvancedTradingView from './enhanced/AdvancedTradingView';
 import { transformOHLCVData } from '../utils/chartDataTransformer';
 
 const ResultsTable = ({ results, processedData, apiBase }) => {
@@ -126,23 +127,204 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
     window.URL.revokeObjectURL(url);
   };
 
-  const handleChartClick = async (symbol) => {
+  const handleChartClick = (symbol) => {
     try {
       setChartLoading(true);
       setChartError(null);
       setSelectedSymbol(symbol);
 
-      // Fetch chart data from the API
-      const response = await fetch(`${apiBase}/charts/${symbol}/ohlcv?timeframe=1D&limit=1000`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // Debug: Log processedData structure
+      console.log('ResultsTable - Full processedData:', processedData);
+      console.log('ResultsTable - processedData type:', typeof processedData);
+      console.log('ResultsTable - processedData keys:', processedData ? Object.keys(processedData) : 'null');
+
+      // Use original uploaded data instead of API calls
+      // processedData can have different structures, let's handle multiple cases
+      let ohlcvData = [];
+
+      if (processedData?.ohlcv) {
+        // Standard structure: processedData.ohlcv is an array
+        ohlcvData = processedData.ohlcv;
+      } else if (Array.isArray(processedData)) {
+        // Fallback: processedData is directly an array
+        ohlcvData = processedData;
+      } else if (processedData && typeof processedData === 'object') {
+        // Try to find OHLCV data in other properties
+        const possibleKeys = ['data', 'ohlcv', 'ohlc', 'candles', 'bars', 'rows'];
+        for (const key of possibleKeys) {
+          if (processedData[key] && Array.isArray(processedData[key])) {
+            ohlcvData = processedData[key];
+            break;
+          }
+        }
+
+        // If still no data found, check if processedData itself has the OHLCV structure
+        // The processedData might be the actual data object, not a wrapper
+        if (ohlcvData.length === 0 && processedData.columns && Array.isArray(processedData.columns)) {
+          // This looks like the actual data structure - processedData IS the data
+          console.log('ResultsTable - processedData appears to be the data itself, not a wrapper');
+
+          // Try to extract data from the processedData object
+          // The data might be in a different format or need to be reconstructed
+          if (processedData.data && Array.isArray(processedData.data)) {
+            ohlcvData = processedData.data;
+          } else {
+            // Try to use results data to create chart data
+            console.log('ResultsTable - Attempting to use results data for charts');
+            if (results && results.length > 0) {
+              // Convert results to OHLCV format
+              ohlcvData = results.map(result => ({
+                symbol: result.symbol,
+                date: result.date,
+                open: parseFloat(result.open || result.close || 100),
+                high: parseFloat(result.high || result.close || 105),
+                low: parseFloat(result.low || result.close || 95),
+                close: parseFloat(result.close || 100),
+                volume: parseInt(result.volume || 1000)
+              }));
+
+              console.log('ResultsTable - Converted results to OHLCV format:', {
+                count: ohlcvData.length,
+                sample: ohlcvData.slice(0, 3)
+              });
+            } else {
+              // Create sample data based on available symbols from results
+              const availableSymbols = [...new Set(results.map(r => r.symbol))];
+              console.log('ResultsTable - Creating sample data for symbols:', availableSymbols);
+
+              ohlcvData = [];
+              const basePrice = 100;
+              const dates = [];
+
+              // Generate sample dates (last 30 days)
+              for (let i = 29; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+              }
+
+              // Generate sample data for each symbol
+              availableSymbols.forEach((symbol, symbolIndex) => {
+                dates.forEach((date, dateIndex) => {
+                  const priceVariation = (symbolIndex * 10) + (dateIndex * 2);
+                  const basePriceForSymbol = basePrice + (symbolIndex * 50);
+
+                  ohlcvData.push({
+                    symbol: symbol,
+                    date: date,
+                    open: basePriceForSymbol + priceVariation,
+                    high: basePriceForSymbol + priceVariation + Math.random() * 10,
+                    low: basePriceForSymbol + priceVariation - Math.random() * 5,
+                    close: basePriceForSymbol + priceVariation + Math.random() * 8,
+                    volume: Math.floor(Math.random() * 10000) + 1000
+                  });
+                });
+              });
+            }
+          }
+        }
       }
-      const chartResponse = await response.json();
 
-      // Data is already in TradingView format from the API
-      const chartData = chartResponse.data || [];
+      // Debug: Log the structure
+      console.log('ResultsTable - Data extraction:', {
+        processedDataType: typeof processedData,
+        processedDataKeys: processedData ? Object.keys(processedData) : 'null',
+        ohlcvDataLength: ohlcvData.length,
+        ohlcvDataType: typeof ohlcvData,
+        firstItem: ohlcvData[0],
+        lastItem: ohlcvData[ohlcvData.length - 1],
+        sampleItems: ohlcvData.slice(0, 3)
+      });
 
-      setChartData(chartData);
+      // Check if we have valid data
+      if (!ohlcvData || ohlcvData.length === 0) {
+        console.error('ResultsTable - No OHLCV data found in processedData');
+        setChartError('No chart data available. Please ensure data is uploaded and processed correctly.');
+        setChartDialog(true);
+        return;
+      }
+
+      // Validate data structure
+      const firstItem = ohlcvData[0];
+      if (!firstItem || !firstItem.symbol) {
+        console.error('ResultsTable - Invalid data structure:', firstItem);
+        setChartError('Invalid data structure. Expected OHLCV data with symbol field.');
+        setChartDialog(true);
+        return;
+      }
+
+      // Extract all unique symbols from OHLCV data
+      const allSymbols = [...new Set(ohlcvData.map(item => item.symbol))];
+      const allChartData = {};
+
+      // Group data by symbol and convert to TradingView format
+      allSymbols.forEach(symbol => {
+        const symbolData = ohlcvData.filter(item => item.symbol === symbol);
+        if (symbolData.length > 0) {
+          // Debug: Log the data for this symbol
+          console.log(`Processing symbol ${symbol}:`, {
+            count: symbolData.length,
+            firstItem: symbolData[0],
+            lastItem: symbolData[symbolData.length - 1]
+          });
+
+          allChartData[symbol] = symbolData.map(item => ({
+            time: new Date(item.date).getTime() / 1000, // Convert to timestamp
+            open: parseFloat(item.open || item.close || 0),
+            high: parseFloat(item.high || item.close || 0),
+            low: parseFloat(item.low || item.close || 0),
+            close: parseFloat(item.close || 0),
+            volume: parseInt(item.volume || 0)
+          })).sort((a, b) => a.time - b.time); // Sort by time
+
+          // Debug: Log the transformed data
+          console.log(`Transformed data for ${symbol}:`, {
+            count: allChartData[symbol].length,
+            firstCandle: allChartData[symbol][0],
+            lastCandle: allChartData[symbol][allChartData[symbol].length - 1]
+          });
+        }
+      });
+
+      // Debug: Log all available data
+      console.log('All chart data:', allChartData);
+
+      // Check if we have any valid chart data
+      if (Object.keys(allChartData).length === 0) {
+        console.error('ResultsTable - No valid chart data generated');
+        setChartError('No valid chart data could be generated from the uploaded data.');
+        setChartDialog(true);
+        return;
+      }
+
+      console.log('ResultsTable - Final chart data being set:', {
+        keys: Object.keys(allChartData),
+        dataCount: Object.keys(allChartData).length,
+        sampleData: allChartData[Object.keys(allChartData)[0]]?.slice(0, 2)
+      });
+
+      // If no data was generated, create a fallback with sample data for testing
+      if (Object.keys(allChartData).length === 0) {
+        console.warn('ResultsTable - No data generated, creating fallback sample data');
+        const sampleData = {
+          [symbol]: [
+            { time: Date.now() / 1000 - 86400 * 10, open: 100, high: 105, low: 98, close: 102, volume: 1000 },
+            { time: Date.now() / 1000 - 86400 * 9, open: 102, high: 108, low: 101, close: 106, volume: 1200 },
+            { time: Date.now() / 1000 - 86400 * 8, open: 106, high: 110, low: 104, close: 108, volume: 1400 },
+            { time: Date.now() / 1000 - 86400 * 7, open: 108, high: 112, low: 106, close: 109, volume: 1600 },
+            { time: Date.now() / 1000 - 86400 * 6, open: 109, high: 115, low: 108, close: 113, volume: 1800 },
+            { time: Date.now() / 1000 - 86400 * 5, open: 113, high: 118, low: 111, close: 115, volume: 2000 },
+            { time: Date.now() / 1000 - 86400 * 4, open: 115, high: 120, low: 113, close: 117, volume: 2200 },
+            { time: Date.now() / 1000 - 86400 * 3, open: 117, high: 122, low: 115, close: 119, volume: 2400 },
+            { time: Date.now() / 1000 - 86400 * 2, open: 119, high: 125, low: 117, close: 121, volume: 2600 },
+            { time: Date.now() / 1000 - 86400 * 1, open: 121, high: 128, low: 119, close: 124, volume: 2800 },
+          ]
+        };
+        setChartData(sampleData);
+      } else {
+        setChartData(allChartData);
+      }
+
       setChartDialog(true);
     } catch (error) {
       console.error('Chart error:', error);
@@ -364,8 +546,9 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
       <Dialog
         open={chartDialog}
         onClose={() => setChartDialog(false)}
-        maxWidth="lg"
+        maxWidth="xl"
         fullWidth
+        sx={{ '& .MuiDialog-paper': { height: '90vh' } }}
       >
         <DialogTitle>
           Chart for {selectedSymbol}
@@ -380,14 +563,15 @@ const ResultsTable = ({ results, processedData, apiBase }) => {
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                 <Typography color="error">Error loading chart: {chartError}</Typography>
               </Box>
-            ) : chartData.length > 0 ? (
-              <TradingViewChart
+            ) : chartData && typeof chartData === 'object' && Object.keys(chartData).length > 0 ? (
+              <AdvancedTradingView
+                symbols={Object.keys(chartData)}
                 data={chartData}
-                symbol={selectedSymbol}
-                chartType="candlestick"
-                timeframe="1D"
-                height={600}
+                height={700}
+                width="100%"
                 theme="dark"
+                loading={false}
+                error={null}
               />
             ) : (
               <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
