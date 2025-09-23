@@ -673,54 +673,229 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
                 <PieChartIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Trade Exit Reasons</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <PieChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Exit reason distribution chart</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const exitReasons = {};
+                  trades.forEach(trade => {
+                    const reason = trade['Exit Reason'] || 'Unknown';
+                    exitReasons[reason] = (exitReasons[reason] || 0) + 1;
+                  });
+
+                  const plotData = [{
+                    labels: Object.keys(exitReasons),
+                    values: Object.values(exitReasons),
+                    type: 'pie',
+                    textinfo: 'label+percent',
+                    textposition: 'inside',
+                    marker: {
+                      colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                    }
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'Trade Exit Reasons Distribution',
+                      font: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <PieChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            
+
             {/* P&L Distribution */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <BarChartIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">P&L Distribution</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>P&L distribution histogram</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const pnlValues = trades.map(trade => trade['Profit/Loss (%)'] || 0);
+
+                  const plotData = [{
+                    x: pnlValues,
+                    type: 'histogram',
+                    nbinsx: 20,
+                    marker: {
+                      color: '#1f77b4',
+                      line: { color: 'white', width: 1 }
+                    }
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'P&L Distribution (%)',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'P&L (%)', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    yaxis: {
+                      title: { text: 'Frequency', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            
+
             {/* Holding Period Distribution */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <DateIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Holding Period Distribution</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Days held distribution</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const holdingPeriods = trades.map(trade => trade['Days Held'] || 0);
+
+                  const plotData = [{
+                    x: holdingPeriods,
+                    type: 'histogram',
+                    nbinsx: 10,
+                    marker: {
+                      color: '#2ca02c',
+                      line: { color: 'white', width: 1 }
+                    }
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'Holding Period Distribution (Days)',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'Days Held', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    yaxis: {
+                      title: { text: 'Frequency', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            
+
             {/* P&L Over Time */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <TrendingUpIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">P&L Over Time</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>P&L trend over time</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const sortedTrades = trades.sort((a, b) =>
+                    new Date(a['Exit Date'] || a.exit_date) - new Date(b['Exit Date'] || b.exit_date)
+                  );
+
+                  const plotData = [{
+                    x: sortedTrades.map(trade => trade['Exit Date'] || trade.exit_date),
+                    y: sortedTrades.map(trade => trade['Profit/Loss (%)'] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { color: '#ff7f0e', width: 2 },
+                    marker: { size: 4, color: '#ff7f0e' },
+                    name: 'P&L (%)'
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'P&L Trend Over Time',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'Exit Date', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    yaxis: {
+                      title: { text: 'P&L (%)', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -736,74 +911,251 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
                 <BarChartIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Position Size Distribution</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Position size histogram</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const positionSizes = trades.map(trade => trade['Position Value'] || 0);
+
+                  const plotData = [{
+                    x: positionSizes,
+                    type: 'histogram',
+                    nbinsx: 15,
+                    marker: {
+                      color: '#ff7f0e',
+                      line: { color: 'white', width: 1 }
+                    }
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'Position Size Distribution ($)',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'Position Value ($)', font: { color: 'white' } },
+                      tickfont: { color: 'white' },
+                      tickformat: '$,.0f'
+                    },
+                    yaxis: {
+                      title: { text: 'Frequency', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            
+
             {/* Position Size Over Time */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <TrendingUpIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Position Size Evolution</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Position size over time</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const sortedTrades = trades.sort((a, b) =>
+                    new Date(a['Entry Date'] || a.entry_date) - new Date(b['Entry Date'] || b.entry_date)
+                  );
+
+                  const plotData = [{
+                    x: sortedTrades.map(trade => trade['Entry Date'] || trade.entry_date),
+                    y: sortedTrades.map(trade => trade['Position Value'] || 0),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { color: '#2ca02c', width: 2 },
+                    marker: { size: 4, color: '#2ca02c' },
+                    name: 'Position Size ($)'
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'Position Size Evolution Over Time',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'Entry Date', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    yaxis: {
+                      title: { text: 'Position Value ($)', font: { color: 'white' } },
+                      tickfont: { color: 'white' },
+                      tickformat: '$,.0f'
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-            
+
             {/* Position Size Statistics */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <AssessmentIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Position Size Statistics</h3>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Average Position</div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ${performance_metrics?.avg_position ? performance_metrics.avg_position.toLocaleString() : 'N/A'}
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const positionSizes = trades.map(trade => trade['Position Value'] || 0);
+                  const avgPosition = positionSizes.reduce((a, b) => a + b, 0) / positionSizes.length;
+                  const maxPosition = Math.max(...positionSizes);
+                  const minPosition = Math.min(...positionSizes);
+                  const stdDev = Math.sqrt(
+                    positionSizes.reduce((sum, size) => sum + Math.pow(size - avgPosition, 2), 0) / positionSizes.length
+                  );
+
+                  return (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Average Position</div>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ${avgPosition.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Max Position</div>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ${maxPosition.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Min Position</div>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ${minPosition.toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Position Std Dev</div>
+                        <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                          ${stdDev.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Average Position</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">N/A</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Max Position</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">N/A</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Min Position</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">N/A</div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Position Std Dev</div>
+                    <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">N/A</div>
                   </div>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Max Position</div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ${performance_metrics?.max_position ? performance_metrics.max_position.toLocaleString() : 'N/A'}
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Min Position</div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ${performance_metrics?.min_position ? performance_metrics.min_position.toLocaleString() : 'N/A'}
-                  </div>
-                </div>
-                <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Position Std Dev</div>
-                  <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                    ${performance_metrics?.position_std ? performance_metrics.position_std.toLocaleString() : 'N/A'}
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
-            
+
             {/* Position Size vs Performance */}
             <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
               <div className="flex items-center mb-4">
                 <ShowChartIcon className="w-5 h-5 text-primary mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Position Size vs Performance</h3>
               </div>
-              <div className="h-64 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <ScatterIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Position size vs P&L scatter plot</p>
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const plotData = [{
+                    x: trades.map(trade => trade['Position Value'] || 0),
+                    y: trades.map(trade => trade['Profit/Loss (%)'] || 0),
+                    type: 'scatter',
+                    mode: 'markers',
+                    marker: {
+                      size: 8,
+                      color: trades.map(trade => trade['Profit/Loss (%)'] || 0),
+                      colorscale: 'RdYlGn',
+                      showscale: true,
+                      colorbar: {
+                        title: 'P&L (%)',
+                        titleside: 'right'
+                      }
+                    },
+                    text: trades.map(trade => `${trade.Ticker}: $${(trade['Position Value'] || 0).toLocaleString()}`),
+                    hovertemplate: '<b>Ticker:</b> %{text}<br><b>Position Size:</b> $%{x:,.0f}<br><b>P&L:</b> %{y:.2f}%<extra></extra>'
+                  }];
+
+                  const layout = {
+                    title: {
+                      text: 'Position Size vs Performance Correlation',
+                      font: { color: 'white' }
+                    },
+                    xaxis: {
+                      title: { text: 'Position Value ($)', font: { color: 'white' } },
+                      tickfont: { color: 'white' },
+                      tickformat: '$,.0f'
+                    },
+                    yaxis: {
+                      title: { text: 'P&L (%)', font: { color: 'white' } },
+                      tickfont: { color: 'white' }
+                    },
+                    paper_bgcolor: 'rgba(0,0,0,0.8)',
+                    plot_bgcolor: 'rgba(0,0,0,0.8)',
+                    font: { color: 'white' }
+                  };
+
+                  return (
+                    <Plot
+                      data={plotData}
+                      layout={layout}
+                      style={{ width: '100%', height: '300px' }}
+                      useResizeHandler={true}
+                      config={{ displayModeBar: false, displaylogo: false }}
+                    />
+                  );
+                })()
+              ) : (
+                <div className="h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <ScatterIcon className="w-12 h-12 mx-auto mb-2" />
+                    <p>No trade data available</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -908,76 +1260,268 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
               <BalanceIcon className="w-5 h-5 text-primary mr-2" />
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Leverage Usage & Risk Dashboard</h3>
             </div>
-            
+
             {/* Key Leverage Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Average Leverage</div>
                 <div className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                  {performance_metrics?.avg_leverage ? `${performance_metrics.avg_leverage.toFixed(2)}x` : 'N/A'}
+                  {trades && trades.length > 0 ? (() => {
+                    const leverages = trades.map(trade => {
+                      const positionValue = trade['Position Value'] || 0;
+                      const portfolioValue = trade['Portfolio Value'] || 0;
+                      return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                    });
+                    const avgLeverage = leverages.reduce((a, b) => a + b, 0) / leverages.length;
+                    return `${avgLeverage.toFixed(2)}x`;
+                  })() : 'N/A'}
                 </div>
               </div>
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-red-700 dark:text-red-300">Maximum Leverage</div>
                 <div className="text-2xl font-bold text-red-900 dark:text-red-100">
-                  {performance_metrics?.max_leverage ? `${performance_metrics.max_leverage.toFixed(2)}x` : 'N/A'}
+                  {trades && trades.length > 0 ? (() => {
+                    const leverages = trades.map(trade => {
+                      const positionValue = trade['Position Value'] || 0;
+                      const portfolioValue = trade['Portfolio Value'] || 0;
+                      return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                    });
+                    const maxLeverage = Math.max(...leverages);
+                    return `${maxLeverage.toFixed(2)}x`;
+                  })() : 'N/A'}
                 </div>
               </div>
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-yellow-700 dark:text-yellow-300">Leverage Risk Score</div>
                 <div className="text-2xl font-bold text-yellow-900 dark:text-yellow-100">
-                  {performance_metrics?.leverage_risk_score ? performance_metrics.leverage_risk_score.toFixed(2) : 'N/A'}
+                  {trades && trades.length > 0 ? (() => {
+                    const leverages = trades.map(trade => {
+                      const positionValue = trade['Position Value'] || 0;
+                      const portfolioValue = trade['Portfolio Value'] || 0;
+                      return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                    });
+                    const highRiskTrades = leverages.filter(l => l > 2).length;
+                    const riskScore = (highRiskTrades / leverages.length) * 100;
+                    return riskScore.toFixed(2);
+                  })() : 'N/A'}
                 </div>
               </div>
               <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
                 <div className="text-sm font-medium text-green-700 dark:text-green-300">Leverage-Performance Correlation</div>
                 <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {performance_metrics?.leverage_perf_corr ? performance_metrics.leverage_perf_corr.toFixed(3) : 'N/A'}
+                  {trades && trades.length > 0 ? (() => {
+                    const leverages = trades.map(trade => {
+                      const positionValue = trade['Position Value'] || 0;
+                      const portfolioValue = trade['Portfolio Value'] || 0;
+                      return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                    });
+                    const performances = trades.map(trade => trade['Profit/Loss (%)'] || 0);
+
+                    const correlation = leverages.reduce((sum, l, i) => {
+                      const meanL = leverages.reduce((a, b) => a + b, 0) / leverages.length;
+                      const meanP = performances.reduce((a, b) => a + b, 0) / performances.length;
+                      return sum + (l - meanL) * (performances[i] - meanP);
+                    }, 0) / Math.sqrt(
+                      leverages.reduce((sum, l) => sum + Math.pow(l - leverages.reduce((a, b) => a + b, 0) / leverages.length, 2), 0) *
+                      performances.reduce((sum, p) => sum + Math.pow(p - performances.reduce((a, b) => a + b, 0) / performances.length, 2), 0)
+                    );
+                    return correlation.toFixed(3);
+                  })() : 'N/A'}
                 </div>
               </div>
             </div>
-            
+
             {/* Leverage Distribution */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="h-80 bg-gray-50 dark:bg-gray-800/30 rounded-lg p-4 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Leverage distribution histogram</p>
+              <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
+                <div className="flex items-center mb-4">
+                  <BarChartIcon className="w-5 h-5 text-primary mr-2" />
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Leverage Distribution</h4>
                 </div>
+                {trades && trades.length > 0 ? (
+                  (() => {
+                    const leverages = trades.map(trade => {
+                      const positionValue = trade['Position Value'] || 0;
+                      const portfolioValue = trade['Portfolio Value'] || 0;
+                      return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                    });
+
+                    const plotData = [{
+                      x: leverages,
+                      type: 'histogram',
+                      nbinsx: 10,
+                      marker: {
+                        color: '#d62728',
+                        line: { color: 'white', width: 1 }
+                      }
+                    }];
+
+                    const layout = {
+                      title: {
+                        text: 'Leverage Distribution',
+                        font: { color: 'white' }
+                      },
+                      xaxis: {
+                        title: { text: 'Leverage (x)', font: { color: 'white' } },
+                        tickfont: { color: 'white' }
+                      },
+                      yaxis: {
+                        title: { text: 'Frequency', font: { color: 'white' } },
+                        tickfont: { color: 'white' }
+                      },
+                      paper_bgcolor: 'rgba(0,0,0,0.8)',
+                      plot_bgcolor: 'rgba(0,0,0,0.8)',
+                      font: { color: 'white' }
+                    };
+
+                    return (
+                      <Plot
+                        data={plotData}
+                        layout={layout}
+                        style={{ width: '100%', height: '300px' }}
+                        useResizeHandler={true}
+                        config={{ displayModeBar: false, displaylogo: false }}
+                      />
+                    );
+                  })()
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center text-gray-500 dark:text-gray-400">
+                      <BarChartIcon className="w-12 h-12 mx-auto mb-2" />
+                      <p>No trade data available</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              
+
               {/* Leverage Timeline */}
-              <div className="h-80 bg-gray-50 dark:bg-gray-800/30 rounded-lg p-4 flex items-center justify-center">
-                <div className="text-center text-gray-500 dark:text-gray-400">
-                  <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
-                  <p>Leverage usage over time</p>
+              <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
+                <div className="flex items-center mb-4">
+                  <LineChartIcon className="w-5 h-5 text-primary mr-2" />
+                  <h4 className="text-lg font-semibold text-gray-900 dark:text-white">Leverage Usage Over Time</h4>
                 </div>
+                {trades && trades.length > 0 ? (
+                  (() => {
+                    const sortedTrades = trades.sort((a, b) =>
+                      new Date(a['Entry Date'] || a.entry_date) - new Date(b['Entry Date'] || b.entry_date)
+                    );
+
+                    const plotData = [{
+                      x: sortedTrades.map(trade => trade['Entry Date'] || trade.entry_date),
+                      y: sortedTrades.map(trade => {
+                        const positionValue = trade['Position Value'] || 0;
+                        const portfolioValue = trade['Portfolio Value'] || 0;
+                        return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                      }),
+                      type: 'scatter',
+                      mode: 'lines+markers',
+                      line: { color: '#ff7f0e', width: 2 },
+                      marker: { size: 4, color: '#ff7f0e' },
+                      name: 'Leverage (x)'
+                    }];
+
+                    const layout = {
+                      title: {
+                        text: 'Leverage Usage Timeline',
+                        font: { color: 'white' }
+                      },
+                      xaxis: {
+                        title: { text: 'Entry Date', font: { color: 'white' } },
+                        tickfont: { color: 'white' }
+                      },
+                      yaxis: {
+                        title: { text: 'Leverage (x)', font: { color: 'white' } },
+                        tickfont: { color: 'white' }
+                      },
+                      paper_bgcolor: 'rgba(0,0,0,0.8)',
+                      plot_bgcolor: 'rgba(0,0,0,0.8)',
+                      font: { color: 'white' }
+                    };
+
+                    return (
+                      <Plot
+                        data={plotData}
+                        layout={layout}
+                        style={{ width: '100%', height: '300px' }}
+                        useResizeHandler={true}
+                        config={{ displayModeBar: false, displaylogo: false }}
+                      />
+                    );
+                  })()
+                ) : (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center text-gray-500 dark:text-gray-400">
+                      <LineChartIcon className="w-12 h-12 mx-auto mb-2" />
+                      <p>No trade data available</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            
+
             {/* Leverage Risk Assessment */}
             <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800/30 rounded-lg">
               <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Leverage Risk Assessment</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {performance_metrics?.safe_trades ? performance_metrics.safe_trades : 0}
+              {trades && trades.length > 0 ? (
+                (() => {
+                  const leverages = trades.map(trade => {
+                    const positionValue = trade['Position Value'] || 0;
+                    const portfolioValue = trade['Portfolio Value'] || 0;
+                    return portfolioValue > 0 ? positionValue / portfolioValue : 0;
+                  });
+
+                  const safeTrades = leverages.filter(l => l <= 2).length;
+                  const highRiskTrades = leverages.filter(l => l > 2 && l <= 3).length;
+                  const extremeRiskTrades = leverages.filter(l => l > 3).length;
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {safeTrades}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Safe Trades (≤2x)</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">
+                          {((safeTrades / leverages.length) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-600">
+                          {highRiskTrades}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">High Risk (2x-3x)</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">
+                          {((highRiskTrades / leverages.length) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-600">
+                          {extremeRiskTrades}
+                        </div>
+                        <div className="text-sm text-gray-600 dark:text-gray-400">Extreme Risk (&gt;3x)</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-500">
+                          {((extremeRiskTrades / leverages.length) * 100).toFixed(1)}%
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">0</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Safe Trades (≤2x)</div>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Safe Trades (≤2x)</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {performance_metrics?.high_risk_trades ? performance_metrics.high_risk_trades : 0}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow-600">0</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">High Risk (2x-3x)</div>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">High Risk {'>'}2x</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {performance_metrics?.extreme_risk_trades ? performance_metrics.extreme_risk_trades : 0}
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-red-600">0</div>
+                    <div className="text-sm text-gray-600 dark:text-gray-400">Extreme Risk (&gt;3x)</div>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Extreme Risk {'>'}3x</div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
