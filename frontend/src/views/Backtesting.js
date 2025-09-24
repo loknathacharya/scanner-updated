@@ -1,18 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import BacktestControls from '../components/BacktestControls';
 import BacktestResults from '../components/BacktestResults';
+import storageManager from '../utils/storageManager';
 
 const Backtesting = ({ filteredResults, ohlcvData, apiBase }) => {
-  // Persist backtest results in localStorage with a unique key
+  // Persist backtest results using storageManager with a unique key
   const [backtestResults, setBacktestResults] = useState(() => {
-    const savedResults = localStorage.getItem('backtest_results');
-    return savedResults ? JSON.parse(savedResults) : null;
+    const savedResults = storageManager.getItem('backtest_results');
+    return savedResults;
   });
 
-  // Save results to localStorage whenever they change
+  // Save results using storageManager whenever they change
   useEffect(() => {
     if (backtestResults) {
-      localStorage.setItem('backtest_results', JSON.stringify(backtestResults));
+      storageManager.setItem('backtest_results', backtestResults);
     }
   }, [backtestResults]);
 
@@ -33,7 +34,7 @@ const Backtesting = ({ filteredResults, ohlcvData, apiBase }) => {
 
   const handleClearResults = () => {
     setBacktestResults(null);
-    localStorage.removeItem('backtest_results');
+    storageManager.removeItem('backtest_results');
   };
 
   return (

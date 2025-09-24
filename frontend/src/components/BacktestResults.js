@@ -72,6 +72,7 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('equity_curve');
+  const [mainTab, setMainTab] = useState('single'); // 'single' or 'optimization'
   const [tradeFilters, setTradeFilters] = useState({
     minReturn: -100,
     maxReturn: 100,
@@ -129,6 +130,13 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
     return allResults.slice().sort(getOptimizationComparator(optimizationOrder, optimizationOrderBy));
   };
 
+  // Auto-switch to optimization tab if optimization results are available and we're on single tab
+  React.useEffect(() => {
+    if (results && (results.optimization_results || results.best_params) && mainTab === 'single') {
+      setMainTab('optimization');
+    }
+  }, [results, mainTab]);
+
   // Extract data from results (moved below after results null-check)
   // const { trades, performance_metrics, equity_curve, summary, execution_time, signals_processed, optimization_results, initial_capital } = results;
 
@@ -160,12 +168,19 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
   // Safe to destructure after ensuring results is non-null
   const { trades, performance_metrics, equity_curve, summary, execution_time, signals_processed, optimization_results, initial_capital } = results;
 
+  // Determine which main tab to show based on available data
+  const hasOptimizationResults = optimization_results || results.best_params;
+  const shouldShowOptimization = hasOptimizationResults && mainTab === 'optimization';
+  const shouldShowSingle = !hasOptimizationResults || mainTab === 'single';
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Backtest Results</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            {hasOptimizationResults ? 'Parameter Optimization Results' : 'Backtest Results'}
+          </h2>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
             {signals_processed} signals processed • {execution_time?.toFixed(2)}s execution time
           </p>
@@ -187,6 +202,34 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
           </button>
         </div>
       </div>
+
+      {/* Main Tabs - Single vs Optimization */}
+      {hasOptimizationResults && (
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-1">
+            <button
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                mainTab === 'single'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setMainTab('single')}
+            >
+              📊 Single Backtest
+            </button>
+            <button
+              className={`px-6 py-3 text-sm font-medium rounded-t-lg transition-colors ${
+                mainTab === 'optimization'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setMainTab('optimization')}
+            >
+              🔬 Parameter Optimization
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* KPI Metrics Section - Always Visible */}
       <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6 mb-6">
@@ -315,94 +358,98 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex space-x-1 overflow-x-auto">
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'equity_curve'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('equity_curve')}
-          >
-            📈 Equity Curve
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'invested_capital'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('invested_capital')}
-          >
-            📊 Invested Capital
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'trade_log'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('trade_log')}
-          >
-            📋 Trade Log
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'per_instrument'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('per_instrument')}
-          >
-            🏢 Per-Instrument
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'trade_analysis'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('trade_analysis')}
-          >
-            📊 Trade Analysis
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'position_sizing'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('position_sizing')}
-          >
-            📏 Position Sizing
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'monte_carlo'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('monte_carlo')}
-          >
-            🎲 Monte Carlo
-          </button>
-          <button
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
-              activeTab === 'leverage_metrics'
-                ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
-                : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-            onClick={() => setActiveTab('leverage_metrics')}
-          >
-            ⚖️ Leverage Metrics
-          </button>
+      {/* Analysis Tabs - Only show for Single Backtest */}
+      {shouldShowSingle && (
+        <div className="border-b border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-1 overflow-x-auto">
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'equity_curve'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('equity_curve')}
+            >
+              📈 Equity Curve
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'invested_capital'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('invested_capital')}
+            >
+              📊 Invested Capital
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'trade_log'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('trade_log')}
+            >
+              📋 Trade Log
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'per_instrument'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('per_instrument')}
+            >
+              🏢 Per-Instrument
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'trade_analysis'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('trade_analysis')}
+            >
+              📊 Trade Analysis
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'position_sizing'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('position_sizing')}
+            >
+              📏 Position Sizing
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'monte_carlo'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('monte_carlo')}
+            >
+              🎲 Monte Carlo
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${
+                activeTab === 'leverage_metrics'
+                  ? 'text-primary border-b-2 border-primary bg-white/50 dark:bg-black/50'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              onClick={() => setActiveTab('leverage_metrics')}
+            >
+              ⚖️ Leverage Metrics
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Tab Content */}
-      {activeTab === 'equity_curve' && (
+      {/* Tab Content - Single Backtest Analysis */}
+      {shouldShowSingle && (
+        <>
+          {activeTab === 'equity_curve' && (
         <div className="space-y-6">
           {/* Portfolio Performance Over Time */}
           <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
@@ -1526,8 +1573,12 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
           </div>
         </div>
       )}
+        </>
+      )}
 
-      {activeTab === 'optimization' && (results?.optimization_results || results?.best_params) && (
+      {/* Optimization Results */}
+      {shouldShowOptimization && (
+        <>
         <div className="space-y-6">
           {/* Best Parameters Summary */}
           <div className="rounded-lg border border-gray-200/50 dark:border-gray-700/50 bg-white/20 dark:bg-black/20 p-6">
@@ -1731,19 +1782,31 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
                         {result.params?.take_profit !== undefined ? `${result.params.take_profit}%` : 'None'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {result.total_return ? `${result.total_return.toFixed(2)}%` : 'N/A'}
+                        {(() => {
+                          const totalReturn = result.total_return || result['Total Return (%)'] || result.total_return_pct || result.return_pct;
+                          return totalReturn ? `${Number(totalReturn).toFixed(2)}%` : 'N/A';
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {result.win_rate ? `${result.win_rate.toFixed(1)}%` : 'N/A'}
+                        {(() => {
+                          const winRate = result.win_rate || result['Win Rate (%)'] || result.win_rate_pct || result.win_rate_percentage;
+                          return winRate ? `${Number(winRate).toFixed(1)}%` : 'N/A';
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                         {result.sharpe_ratio ? result.sharpe_ratio.toFixed(3) : 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {result.max_drawdown ? `${result.max_drawdown.toFixed(2)}%` : 'N/A'}
+                        {(() => {
+                          const maxDrawdown = result.max_drawdown || result['Max Drawdown (%)'] || result.max_drawdown_pct || result.drawdown;
+                          return maxDrawdown ? `${Number(maxDrawdown).toFixed(2)}%` : 'N/A';
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {result.total_trades || 'N/A'}
+                        {(() => {
+                          const totalTrades = result.total_trades || result['Total Trades'] || result.trades || result.num_trades;
+                          return totalTrades || 'N/A';
+                        })()}
                       </td>
                     </tr>
                   ))}
@@ -1757,6 +1820,7 @@ const BacktestResults = ({ results, onExport, onFilterChange }) => {
             )}
           </div>
         </div>
+        </>
       )}
 
       {/* Loading overlay */}

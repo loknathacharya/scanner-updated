@@ -130,7 +130,8 @@ const BacktestControls = ({ filteredResults, ohlcvData, onBacktestComplete, apiB
         const requestData = {
           signals_data: filteredResults,
           ohlcv_data: ohlcvPayload,
-          ...backtestParams
+          ...backtestParams,
+          one_trade_per_instrument: backtestParams.oneTradePerInstrument || false
         };
 
       // Simulate progress updates
@@ -214,7 +215,8 @@ const BacktestControls = ({ filteredResults, ohlcvData, onBacktestComplete, apiB
         holding_period: backtestParams.holdingPeriod,
         signal_type: backtestParams.signalType,
         position_sizing: backtestParams.positionSizing,
-        allow_leverage: backtestParams.allowLeverage
+        allow_leverage: backtestParams.allowLeverage,
+        one_trade_per_instrument: backtestParams.oneTradePerInstrument || false
       };
 
       // Filter out null values from param_ranges to avoid Pydantic validation errors
@@ -563,6 +565,31 @@ const BacktestControls = ({ filteredResults, ohlcvData, onBacktestComplete, apiB
               type="checkbox"
               checked={backtestParams.allowLeverage}
               onChange={(e) => handleParamChange('allowLeverage', e.target.checked)}
+              disabled={isRunning}
+            />
+            <div className="peer h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-primary/50 dark:border-gray-600"></div>
+          </label>
+        </div>
+
+        <div className="sm:col-span-2 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-300">One Trade Per Instrument</span>
+            <div className="group relative">
+              <svg className="w-4 h-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 dark:bg-gray-700 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
+                Only allow one active trade per instrument at a time. New signals for the same instrument will be ignored until the current trade exits.
+              </div>
+            </div>
+          </div>
+          <label className="relative inline-flex cursor-pointer items-center" htmlFor="one-trade-per-instrument">
+            <input
+              className="peer sr-only"
+              id="one-trade-per-instrument"
+              type="checkbox"
+              checked={backtestParams.oneTradePerInstrument || false}
+              onChange={(e) => handleParamChange('oneTradePerInstrument', e.target.checked)}
               disabled={isRunning}
             />
             <div className="peer h-6 w-11 rounded-full bg-gray-200 dark:bg-gray-700 after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:ring-2 peer-focus:ring-primary/50 dark:border-gray-600"></div>
