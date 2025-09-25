@@ -1,0 +1,171 @@
+name: Backtest Validation Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run validation tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  validation:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10]
+        test-type: [full, ci, benchmark]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run validation tests
+      if: matrix.test-type == 'full'
+      run: |
+        python -m pytest tests/test_comprehensive_validation.py -v --cov=BackTestEngine --cov-report=xml --cov-report=html
+        python tests/test_validation_runner.py --tests single_backtest_consistency leverage_constraints parameter_optimization_consistency deterministic_results
+    
+    - name: Run CI-optimized tests
+      if: matrix.test-type == 'ci'
+      run: |
+        python tests/test_validation_runner.py --ci
+    
+    - name: Run performance benchmarks
+      if: matrix.test-type == 'benchmark'
+      run: |
+        python tests/test_validation_runner.py --benchmark
+    
+    - name: Upload coverage reports
+      if: matrix.test-type == 'full'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: validation-results-${{ matrix.python-version }}-${{ matrix.test-type }}
+        path: |
+          backend/tests/validation_report.txt
+          backend/tests/validation_results.json
+          backend/tests/coverage.xml
+          backend/tests/htmlcov/
+    
+    - name: Generate summary report
+      if: always()
+      run: |
+        echo "## Validation Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "- Python Version: ${{ matrix.python-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Test Type: ${{ matrix.test-type }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f backend/tests/validation_report.txt ]; then
+          echo "\n### Test Summary" >> $GITHUB_STEP_SUMMARY
+          tail -20 backend/tests/validation_report.txt >> $GITHUB_STEP_SUMMARY
+        fi
+
+  validation-windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        test-type: [full, ci]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-test.txt
+    
+    - name: Run validation tests
+      if: matrix.test-type == 'full'
+      run: |
+        python -m pytest tests/test_comprehensive_validation.py -v
+        python tests/test_validation_runner.py --tests single_backtest_consistency leverage_constraints parameter_optimization_consistency deterministic_results
+    
+    - name: Run CI-optimized tests
+      if: matrix.test-type == 'ci'
+      run: |
+        python tests/test_validation_runner.py --ci
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: validation-results-windows-${{ matrix.test-type }}
+        path: |
+          backend/tests/validation_report.txt
+          backend/tests/validation_results.json
+
+  validation-summary:
+    needs: [validation, validation-windows]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+    
+    - name: Generate summary report
+      run: |
+        echo "# Backtest Validation Test Summary" > validation_summary.md
+        echo "Generated on: $(date)" >> validation_summary.md
+        echo "" >> validation_summary.md
+        
+        echo "## Test Results" >> validation_summary.md
+        echo "| Environment | Test Type | Status |" >> validation_summary.md
+        echo "|-------------|-----------|--------|" >> validation_summary.md
+        
+        # Check for success/failure indicators
+        if [ -f validation-results-3.8-full/validation_report.txt ]; then
+          echo "| Ubuntu 3.8 | Full | ✅ |" >> validation_summary.md
+        else
+          echo "| Ubuntu 3.8 | Full | ❌ |" >> validation_summary.md
+        fi
+        
+        if [ -f validation-results-3.9-ci/validation_report.txt ]; then
+          echo "| Ubuntu 3.9 | CI | ✅ |" >> validation_summary.md
+        else
+          echo "| Ubuntu 3.9 | CI | ❌ |" >> validation_summary.md
+        fi
+        
+        if [ -f validation-results-windows-full/validation_report.txt ]; then
+          echo "| Windows | Full | ✅ |" >> validation_summary.md
+        else
+          echo "| Windows | Full | ❌ |" >> validation_summary.md
+        fi
+        
+        echo "" >> validation_summary.md
+        echo "## Detailed Results" >> validation_summary.md
+        echo "For detailed test results, see the individual artifact files." >> validation_summary.md
+        
+        # Upload summary
+        cat validation_summary.md >> $GITHUB_STEP_SUMMARY
+    
+    - name: Upload summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: validation-summary
+        path: validation_summary.md

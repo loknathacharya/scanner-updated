@@ -216,12 +216,15 @@ def calculate_position_size_vectorized(sizing_method_code: int, entry_price: flo
     max_shares = portfolio_value / entry_price
     shares = min(shares, max_shares)
     
-    # Apply leverage constraint only when leverage is explicitly allowed
-    # When allow_leverage=False, we should not restrict position sizes beyond portfolio limits
+    # Apply leverage constraint based on allow_leverage setting
     if allow_leverage:
         # When leverage is allowed, we can use the full portfolio value
         max_shares_with_leverage = portfolio_value / entry_price
         shares = min(shares, max_shares_with_leverage)
+    else:
+        # When leverage is NOT allowed, restrict to available capital only
+        max_shares_available = (portfolio_value - open_positions_value) / entry_price
+        shares = min(shares, max_shares_available)
     
     # Return the whole number of shares, ensuring it's not negative.
     # Returning 0 shares is a valid outcome if capital is insufficient for even one share.
@@ -292,12 +295,13 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
         ticker_prices = vectorized_data[ticker]
         print(f"DEBUG run_single_parameter_combo: Found {len(ticker_prices)} price records for {ticker}")
         
-        # Find entry point
-        entry_indices = np.where(ticker_prices[:, 0] >= entry_date_ordinal)[0]
-        if len(entry_indices) == 0:
+        # Find entry point using asof-like logic (latest date on or before signal date)
+        # This matches the non-vectorized implementation's behavior
+        date_indices = np.where(ticker_prices[:, 0] <= entry_date_ordinal)[0]
+        if len(date_indices) == 0:
             continue
             
-        entry_idx = entry_indices[0]
+        entry_idx = date_indices[-1]  # Latest date on or before signal date
         # Check if there's enough data for the full holding period
         if entry_idx + hp + 1 > len(ticker_prices):
             continue
@@ -309,6 +313,9 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
         kelly_avg_win = sizing_params.get('kelly_avg_win', 8)
         kelly_avg_loss = sizing_params.get('kelly_avg_loss', -4)
         
+        # DEBUG: Log position sizing calculation details
+        print(f"DEBUG run_single_parameter_combo: Position sizing - entry_price={entry_price:.6f}, portfolio_value={portfolio_value:.6f}, open_positions_value={open_positions_value:.6f}")
+        
         shares = calculate_position_size_vectorized(
             sizing_code, entry_price, portfolio_value,
             0.20, entry_price * 0.02, sizing_params.get('risk_per_trade', 2.0),
@@ -319,6 +326,9 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
             kelly_win_rate, kelly_avg_win, kelly_avg_loss,
             open_positions_value # Pass open_positions_value
         )
+        
+        # DEBUG: Log calculated shares
+        print(f"DEBUG run_single_parameter_combo: Calculated shares={shares:.6f}, position_value={shares * entry_price:.6f}")
         
         position_value = shares * entry_price
         
@@ -344,10 +354,17 @@ def run_single_parameter_combo(args: Tuple) -> Dict:
                 pl_dollar = (entry_price - exit_price) * shares
                 pl_pct = ((entry_price - exit_price) / entry_price) * 100
             
+            # DEBUG: Log P&L calculation details
+            print(f"DEBUG run_single_parameter_combo: P&L calculation - entry_price={entry_price:.6f}, exit_price={exit_price:.6f}, shares={shares:.6f}, pl_dollar={pl_dollar:.6f}")
+            print(f"DEBUG run_single_parameter_combo: Portfolio value before update: {portfolio_value:.6f}")
+            
             portfolio_value += pl_dollar
             
             # Update open positions value when trade exits
             open_positions_value -= position_value
+            
+            # DEBUG: Log portfolio value update
+            print(f"DEBUG run_single_parameter_combo: Portfolio value after update: {portfolio_value:.6f}")
 
             # Convert ordinal dates back to datetime for consistency with original format
             entry_date = pd.Timestamp.fromordinal(int(ticker_prices[entry_idx, 0]))
@@ -614,6 +631,9 @@ def run_backtest(ohlcv_df, signals_df, holding_period, stop_loss_pct, take_profi
                     atr = calculate_atr(recent_data['High'], recent_data['Low'], recent_data['Close'])
             
             # Calculate position size with leverage control
+            # DEBUG: Log position sizing calculation details for non-vectorized
+            print(f"DEBUG run_backtest: Position sizing - entry_price={entry_price:.6f}, portfolio_value={portfolio_value:.6f}, open_positions_value={open_positions_value:.6f}")
+            
             shares = calculate_position_size(
                 sizing_method=sizing_method,
                 entry_price=entry_price,
@@ -629,6 +649,9 @@ def run_backtest(ohlcv_df, signals_df, holding_period, stop_loss_pct, take_profi
                 allow_leverage=allow_leverage,
                 open_positions_value=open_positions_value
             )
+            
+            # DEBUG: Log calculated shares for non-vectorized
+            print(f"DEBUG run_backtest: Calculated shares={shares:.6f}, position_value={shares * entry_price:.6f}")
             
             # DEBUG: Log position sizing
             print(f"DEBUG run_backtest: Ticker={ticker}, Entry Price={entry_price:.2f}, Shares={shares:.0f}, Portfolio Value={portfolio_value:.2f}, Open Positions Value={open_positions_value:.2f}")
@@ -711,6 +734,10 @@ def run_backtest(ohlcv_df, signals_df, holding_period, stop_loss_pct, take_profi
                     pl_dollar = (entry_price - exit_price) * shares  # Reversed for short
                     pl_pct = ((entry_price - exit_price) / entry_price) * 100  # Reversed for short
                 
+                # DEBUG: Log P&L calculation details for non-vectorized
+                print(f"DEBUG run_backtest: P&L calculation - entry_price={entry_price:.6f}, exit_price={exit_price:.6f}, shares={shares:.6f}, pl_dollar={pl_dollar:.6f}")
+                print(f"DEBUG run_backtest: Portfolio value before update: {portfolio_value:.6f}")
+                
                 days_held = instrument_data.index.get_loc(exit_date) - instrument_data.index.get_loc(entry_row_index) # Calculate trading days held
                 
                 # Update portfolio value
@@ -719,8 +746,8 @@ def run_backtest(ohlcv_df, signals_df, holding_period, stop_loss_pct, take_profi
                 # Update open positions value when trade exits
                 open_positions_value -= position_value
                 
-                # DEBUG: Log trade execution
-                print(f"DEBUG run_backtest: Trade executed - P&L={pl_dollar:.2f}, New Portfolio Value={portfolio_value:.2f}, New Open Positions Value={open_positions_value:.2f}")
+                # DEBUG: Log portfolio value update for non-vectorized
+                print(f"DEBUG run_backtest: Portfolio value after update: {portfolio_value:.6f}")
                 
 
                 trades.append({
